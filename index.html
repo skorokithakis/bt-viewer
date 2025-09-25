@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blood test viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f7fa;
+            color: #2c3e50;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: #fff;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #e1e8ed;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        header h1 {
+            font-size: 1.5rem;
+            color: #1a202c;
+        }
+
+        .app-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: #fff;
+            border-right: 1px solid #e1e8ed;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .sidebar h2 {
+            padding: 1rem;
+            font-size: 1.1rem;
+            color: #4a5568;
+            border-bottom: 1px solid #e1e8ed;
+        }
+
+        .test-list {
+            list-style: none;
+        }
+
+        .test-item {
+            padding: 1rem;
+            border-bottom: 1px solid #f0f4f8;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .test-item:hover {
+            background: #f7fafc;
+        }
+
+        .test-item.selected {
+            background: #edf2f7;
+            border-left: 3px solid #4299e1;
+            padding-left: calc(1rem - 3px);
+        }
+
+        .test-date {
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 0.25rem;
+        }
+
+        .test-lab {
+            font-size: 0.875rem;
+            color: #718096;
+            margin-bottom: 0.25rem;
+        }
+
+        .test-abnormal {
+            font-size: 0.875rem;
+            color: #e53e3e;
+        }
+
+        .test-abnormal.zero {
+            color: #48bb78;
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 2rem;
+            overflow-y: auto;
+            background: #fff;
+        }
+
+        .back-button {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: #4299e1;
+            color: white;
+            border: none;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            margin-bottom: 1rem;
+            font-size: 0.875rem;
+        }
+
+        .back-button:hover {
+            background: #3182ce;
+        }
+
+        .important-biomarkers {
+            margin-bottom: 2rem;
+        }
+
+        .important-biomarkers h2 {
+            font-size: 1.25rem;
+            color: #2d3748;
+            margin-bottom: 1rem;
+        }
+
+        .biomarker-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .biomarker-card {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .biomarker-card:hover {
+            box-shadow: 0 4px 6px rgba(0,0,0,0.07);
+            transform: translateY(-1px);
+        }
+
+        .biomarker-name {
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+        }
+
+        .biomarker-values {
+            display: flex;
+            align-items: baseline;
+            gap: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .current-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .previous-value {
+            font-size: 1rem;
+            color: #718096;
+        }
+
+        .value-green {
+            color: #48bb78;
+        }
+
+        .value-red {
+            color: #e53e3e;
+        }
+
+        .value-neutral {
+            color: #718096;
+        }
+
+        .arrow {
+            display: inline-block;
+            margin-left: 0.5rem;
+            font-size: 1.25rem;
+        }
+
+        .arrow-green {
+            color: #48bb78;
+        }
+
+        .arrow-red {
+            color: #e53e3e;
+        }
+
+        .arrow-neutral {
+            color: #a0aec0;
+        }
+
+        .no-abnormalities {
+            padding: 2rem;
+            background: #f0fff4;
+            border: 1px solid #9ae6b4;
+            border-radius: 0.5rem;
+            color: #22543d;
+            text-align: center;
+        }
+
+        .results-table {
+            margin-top: 2rem;
+        }
+
+        .results-table h2 {
+            font-size: 1.25rem;
+            color: #2d3748;
+            margin-bottom: 1rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #fff;
+        }
+
+        thead {
+            background: #f7fafc;
+        }
+
+        th {
+            padding: 0.75rem;
+            text-align: left;
+            font-weight: 600;
+            color: #4a5568;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        td {
+            padding: 0.75rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        tbody tr {
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        tbody tr:hover {
+            background: #f7fafc;
+        }
+
+        .status-in-range {
+            color: #48bb78;
+        }
+
+        .status-out-of-range {
+            color: #e53e3e;
+        }
+
+        .status-no-range {
+            color: #718096;
+        }
+
+        .chart-container {
+            width: 100%;
+            height: 400px;
+            margin-top: 2rem;
+            position: relative;
+        }
+
+        .chart-title {
+            font-size: 1.25rem;
+            color: #2d3748;
+            margin-bottom: 1rem;
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-size: 1.25rem;
+            color: #718096;
+        }
+
+        .error {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: #e53e3e;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .error h2 {
+            margin-bottom: 0.5rem;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+</head>
+<body>
+    <div id="loading" class="loading">Loading blood test data...</div>
+    <div id="error" class="error" style="display: none;">
+        <div>
+            <h2>Failed to load data</h2>
+            <p>Please rebuild data.json from your CSV file.</p>
+        </div>
+    </div>
+    <div id="app" style="display: none;">
+        <header>
+            <h1>Blood test viewer</h1>
+        </header>
+        <div class="app-container">
+            <aside class="sidebar">
+                <h2>Test history</h2>
+                <ul id="test-list" class="test-list"></ul>
+            </aside>
+            <main id="main-content" class="main-content"></main>
+        </div>
+    </div>
+
+    <script>
+        // Global data storage.
+        let testsData = [];
+        let currentTestIndex = 0;
+        let currentView = 'report';  // 'report' or 'longitudinal'
+        let currentBiomarker = null;
+        let chartInstance = null;
+        let isNavigating = false;  // Flag to prevent duplicate history pushes.
+
+        // Utility function to check if a value is numeric.
+        function isNumeric(value) {
+            if (typeof value !== 'string') return false;
+            const trimmed = value.trim();
+            return /^[+-]?((\d+(\.\d+)?)|(\.\d+))$/.test(trimmed);
+        }
+
+        // Parse a numeric value from string.
+        function parseNumeric(value) {
+            return isNumeric(value) ? parseFloat(value.trim()) : null;
+        }
+
+        // Check if a value is in range.
+        // Returns true (in range), false (out of range), or null (non-numeric or no range).
+        function checkInRange(value, low, high) {
+            const numericValue = parseNumeric(value);
+            if (numericValue === null) return null;  // Non-numeric.
+
+            // If both bounds are null, there's no range to check.
+            if (low === null && high === null) return null;
+
+            let inRange = true;
+            if (low !== null && numericValue < low) inRange = false;
+            if (high !== null && numericValue > high) inRange = false;
+            return inRange;
+        }
+
+        // Calculate abnormal count for a test.
+        function calculateAbnormalCount(test) {
+            let count = 0;
+            for (const biomarker of test.biomarkers) {
+                const inRange = checkInRange(biomarker.value, biomarker.low, biomarker.high);
+                if (inRange === false) count++;
+            }
+            return count;
+        }
+
+        // Get the previous test relative to current index.
+        function getPreviousTest(index) {
+            return index < testsData.length - 1 ? testsData[index + 1] : null;
+        }
+
+        // Find important biomarkers based on abnormalities in current + previous 4 tests.
+        function findImportantBiomarkers(currentIndex) {
+            const important = [];
+            const currentTest = testsData[currentIndex];
+
+            // Look at current + previous 4 tests.
+            const testsToCheck = [];
+            for (let i = currentIndex; i < Math.min(currentIndex + 5, testsData.length); i++) {
+                testsToCheck.push({ index: i, test: testsData[i] });
+            }
+
+            // Build a map of biomarkers and their most recent abnormal test.
+            const biomarkerAbnormalities = new Map();
+
+            for (const { index, test } of testsToCheck) {
+                for (const biomarker of test.biomarkers) {
+                    const inRange = checkInRange(biomarker.value, biomarker.low, biomarker.high);
+                    if (inRange === false) {
+                        if (!biomarkerAbnormalities.has(biomarker.name)) {
+                            biomarkerAbnormalities.set(biomarker.name, {
+                                name: biomarker.name,
+                                mostRecentAbnormalIndex: index,
+                                mostRecentAbnormalDate: test.date
+                            });
+                        }
+                    }
+                }
+            }
+
+            // Convert to array and sort.
+            const sortedBiomarkers = Array.from(biomarkerAbnormalities.values());
+            sortedBiomarkers.sort((a, b) => {
+                // Sort by most recent abnormality (smaller index = more recent).
+                if (a.mostRecentAbnormalIndex !== b.mostRecentAbnormalIndex) {
+                    return a.mostRecentAbnormalIndex - b.mostRecentAbnormalIndex;
+                }
+                // Tie-break alphabetically.
+                return a.name.localeCompare(b.name);
+            });
+
+            // Build the important biomarkers list with current and previous values.
+            for (const item of sortedBiomarkers) {
+                const currentBiomarker = currentTest.biomarkers.find(b => b.name === item.name);
+                if (!currentBiomarker) continue;
+
+                const previousTest = getPreviousTest(currentIndex);
+                let previousBiomarker = null;
+                if (previousTest) {
+                    previousBiomarker = previousTest.biomarkers.find(b => b.name === item.name);
+                }
+
+                important.push({
+                    name: item.name,
+                    current: currentBiomarker,
+                    previous: previousBiomarker,
+                    mostRecentAbnormalIndex: item.mostRecentAbnormalIndex
+                });
+            }
+
+            return important;
+        }
+
+        // Calculate arrow direction and color.
+        function calculateArrow(currentValue, previousValue, low, high) {
+            const current = parseNumeric(currentValue);
+            const previous = parseNumeric(previousValue);
+
+            if (current === null || previous === null) {
+                return { direction: 'neutral', color: 'neutral' };
+            }
+
+            let direction = 'flat';
+            if (current > previous) direction = 'up';
+            else if (current < previous) direction = 'down';
+
+            // Calculate improvement/worsening based on PRD section 7.4.
+            let color = 'neutral';
+
+            if (low !== null && high !== null) {
+                // Both bounds exist - use midpoint.
+                const midpoint = (low + high) / 2;
+                const distPrev = Math.abs(previous - midpoint);
+                const distCurr = Math.abs(current - midpoint);
+
+                if (distCurr < distPrev) color = 'green';
+                else if (distCurr > distPrev) color = 'red';
+                else color = 'green';  // Equal distance means not worse.
+            } else if (low !== null && high === null) {
+                // Only lower bound exists.
+                // Improvement means getting closer to or above the lower bound.
+                const distPrev = Math.abs(previous - low);
+                const distCurr = Math.abs(current - low);
+
+                if (distCurr < distPrev) color = 'green';
+                else if (distCurr > distPrev) color = 'red';
+                else color = 'green';
+            } else if (low === null && high !== null) {
+                // Only upper bound exists.
+                // Improvement means getting closer to or below the upper bound.
+                const distPrev = Math.abs(previous - high);
+                const distCurr = Math.abs(current - high);
+
+                if (distCurr < distPrev) color = 'green';
+                else if (distCurr > distPrev) color = 'red';
+                else color = 'green';
+            } else {
+                // No bounds - neutral color.
+                color = 'neutral';
+            }
+
+            // Special case: if values are equal, always green.
+            if (current === previous) {
+                direction = 'flat';
+                color = 'green';
+            }
+
+            return { direction, color };
+        }
+
+        // Get arrow symbol.
+        function getArrowSymbol(direction) {
+            switch (direction) {
+                case 'up': return '↑';
+                case 'down': return '↓';
+                case 'flat': return '→';
+                default: return '•';
+            }
+        }
+
+        // Render the sidebar with test list.
+        function renderSidebar() {
+            const testList = document.getElementById('test-list');
+            testList.innerHTML = '';
+
+            testsData.forEach((test, index) => {
+                const abnormalCount = calculateAbnormalCount(test);
+                const li = document.createElement('li');
+                li.className = 'test-item';
+                if (index === currentTestIndex) {
+                    li.classList.add('selected');
+                }
+
+                li.innerHTML = `
+                    <div class="test-date">${formatDate(test.date)}</div>
+                    <div class="test-lab">${test.labName}</div>
+                    <div class="test-abnormal ${abnormalCount === 0 ? 'zero' : ''}">
+                        ${abnormalCount} abnormal result${abnormalCount !== 1 ? 's' : ''}
+                    </div>
+                `;
+
+                li.addEventListener('click', () => {
+                    selectTest(index);
+                });
+
+                testList.appendChild(li);
+            });
+        }
+
+        // Format date for display.
+        function formatDate(dateStr) {
+            const date = new Date(dateStr + 'T00:00:00');
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        }
+
+        // Get status for a biomarker.
+        function getStatus(value, low, high) {
+            const inRange = checkInRange(value, low, high);
+            if (inRange === true) return { text: 'In range', class: 'status-in-range' };
+            if (inRange === false) return { text: 'Out of range', class: 'status-out-of-range' };
+            // For non-numeric values or no range defined.
+            return { text: 'No range', class: 'status-no-range' };
+        }
+
+        // Get value color class.
+        function getValueColorClass(value, low, high) {
+            const inRange = checkInRange(value, low, high);
+            if (inRange === true) return 'value-green';
+            if (inRange === false) return 'value-red';
+            return 'value-neutral';
+        }
+
+        // Render the single-report view.
+        function renderSingleReport() {
+            const mainContent = document.getElementById('main-content');
+            const currentTest = testsData[currentTestIndex];
+            const importantBiomarkers = findImportantBiomarkers(currentTestIndex);
+
+            let html = `
+                <div class="important-biomarkers">
+                    <h2>Important biomarkers</h2>
+            `;
+
+            if (importantBiomarkers.length === 0) {
+                html += `<div class="no-abnormalities">✓ No recent abnormalities</div>`;
+            } else {
+                html += '<div class="biomarker-cards">';
+
+                for (const item of importantBiomarkers) {
+                    const currentColorClass = getValueColorClass(
+                        item.current.value,
+                        item.current.low,
+                        item.current.high
+                    );
+
+                    let previousHtml = '';
+                    let arrowHtml = '';
+
+                    if (item.previous) {
+                        const previousColorClass = getValueColorClass(
+                            item.previous.value,
+                            item.previous.low,
+                            item.previous.high
+                        );
+                        previousHtml = `<span class="previous-value ${previousColorClass}">
+                            prev: ${item.previous.value}${item.previous.unit ? ' ' + item.previous.unit : ''}
+                        </span>`;
+
+                        const arrow = calculateArrow(
+                            item.current.value,
+                            item.previous.value,
+                            item.current.low,
+                            item.current.high
+                        );
+                        arrowHtml = `<span class="arrow arrow-${arrow.color}">${getArrowSymbol(arrow.direction)}</span>`;
+                    }
+
+                    html += `
+                        <div class="biomarker-card" onclick="showLongitudinalView('${item.name}')">
+                            <div class="biomarker-name">${item.name}</div>
+                            <div class="biomarker-values">
+                                <span class="current-value ${currentColorClass}">
+                                    ${item.current.value}${item.current.unit ? ' ' + item.current.unit : ''}
+                                </span>
+                                ${arrowHtml}
+                            </div>
+                            ${previousHtml}
+                        </div>
+                    `;
+                }
+
+                html += '</div>';
+            }
+
+            html += `
+                </div>
+                <div class="results-table">
+                    <h2>Full results</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Biomarker</th>
+                                <th>Value</th>
+                                <th>Unit</th>
+                                <th>Reference range</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            for (const biomarker of currentTest.biomarkers) {
+                const status = getStatus(biomarker.value, biomarker.low, biomarker.high);
+
+                let rangeText = '';
+                if (biomarker.low !== null && biomarker.high !== null) {
+                    rangeText = `${biomarker.low} - ${biomarker.high}`;
+                } else if (biomarker.low !== null) {
+                    rangeText = `≥ ${biomarker.low}`;
+                } else if (biomarker.high !== null) {
+                    rangeText = `≤ ${biomarker.high}`;
+                }
+
+                html += `
+                    <tr onclick="showLongitudinalView('${biomarker.name}')">
+                        <td>${biomarker.name}</td>
+                        <td>${biomarker.value}</td>
+                        <td>${biomarker.unit || ''}</td>
+                        <td>${rangeText}</td>
+                        <td class="${status.class}">${status.text}</td>
+                    </tr>
+                `;
+            }
+
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            mainContent.innerHTML = html;
+        }
+
+        // Select a test by index and update history.
+        function selectTest(index, skipHistory = false) {
+            if (currentTestIndex === index && currentView === 'report') return;
+
+            currentTestIndex = index;
+            currentView = 'report';
+            currentBiomarker = null;
+
+            if (!skipHistory && !isNavigating) {
+                const test = testsData[index];
+                const state = { view: 'report', testIndex: index };
+                const url = index === 0 ? '/' : `/?test=${index}`;
+                history.pushState(state, '', url);
+            }
+
+            renderSidebar();
+            renderMainContent();
+        }
+
+        // Show longitudinal view for a biomarker.
+        function showLongitudinalView(biomarkerName, skipHistory = false) {
+            if (currentView === 'longitudinal' && currentBiomarker === biomarkerName) return;
+
+            currentView = 'longitudinal';
+            currentBiomarker = biomarkerName;
+
+            if (!skipHistory && !isNavigating) {
+                const state = {
+                    view: 'longitudinal',
+                    testIndex: currentTestIndex,
+                    biomarker: biomarkerName
+                };
+                const url = `/biomarker/${encodeURIComponent(biomarkerName)}?test=${currentTestIndex}`;
+                history.pushState(state, '', url);
+            }
+
+            renderMainContent();
+        }
+
+        // Render longitudinal view with chart.
+        function renderLongitudinalView() {
+            const mainContent = document.getElementById('main-content');
+
+            // Collect data points for this biomarker.
+            const dataPoints = [];
+            let unit = null;
+            let low = null;
+            let high = null;
+
+            for (const test of testsData) {
+                const biomarker = test.biomarkers.find(b => b.name === currentBiomarker);
+                if (biomarker) {
+                    const numericValue = parseNumeric(biomarker.value);
+                    if (numericValue !== null) {
+                        dataPoints.push({
+                            x: test.date,
+                            y: numericValue,
+                            originalValue: biomarker.value
+                        });
+                    }
+                    // Use the range from the first occurrence.
+                    if (unit === null) unit = biomarker.unit;
+                    if (low === null) low = biomarker.low;
+                    if (high === null) high = biomarker.high;
+                }
+            }
+
+            // Reverse to show chronologically.
+            dataPoints.reverse();
+
+            let html = `
+                <button class="back-button" onclick="backToReport()">← Back to report</button>
+                <div class="chart-title">${currentBiomarker}${unit ? ' (' + unit + ')' : ''}</div>
+                <div class="chart-container">
+                    <canvas id="biomarker-chart"></canvas>
+                </div>
+            `;
+
+            mainContent.innerHTML = html;
+
+            // Create the chart.
+            const ctx = document.getElementById('biomarker-chart').getContext('2d');
+
+            // Destroy previous chart instance if it exists.
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+
+            const datasets = [{
+                label: currentBiomarker,
+                data: dataPoints,
+                borderColor: '#4299e1',
+                backgroundColor: 'rgba(66, 153, 225, 0.1)',
+                borderWidth: 2,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                tension: 0.1
+            }];
+
+            // Add reference range bands if available.
+            const annotations = {};
+            if (low !== null || high !== null) {
+                const minY = Math.min(...dataPoints.map(p => p.y));
+                const maxY = Math.max(...dataPoints.map(p => p.y));
+                const range = maxY - minY;
+                const padding = range * 0.2;
+
+                // Create green band for normal range.
+                // When only one bound exists, extend to chart edge.
+                annotations.box1 = {
+                    type: 'box',
+                    yMin: low !== null ? low : minY - padding * 3,
+                    yMax: high !== null ? high : maxY + padding * 3,
+                    backgroundColor: 'rgba(72, 187, 120, 0.15)',
+                    borderColor: 'rgba(72, 187, 120, 0.3)',
+                    borderWidth: 1
+                };
+            }
+
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'month',
+                                displayFormats: {
+                                    month: 'MMM yyyy'
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: unit || 'Value'
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const point = context.raw;
+                                    return `${currentBiomarker}: ${point.originalValue}${unit ? ' ' + unit : ''}`;
+                                }
+                            }
+                        },
+                        annotation: {
+                            annotations: annotations
+                        },
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+
+        // Go back to report view.
+        function backToReport() {
+            selectTest(currentTestIndex);
+        }
+
+        // Render the appropriate main content.
+        function renderMainContent() {
+            if (currentView === 'report') {
+                renderSingleReport();
+            } else if (currentView === 'longitudinal') {
+                renderLongitudinalView();
+            }
+        }
+
+        // Handle browser back/forward button clicks.
+        function handlePopState(event) {
+            isNavigating = true;
+
+            if (event.state) {
+                const { view, testIndex, biomarker } = event.state;
+
+                if (view === 'report') {
+                    currentTestIndex = testIndex;
+                    currentView = 'report';
+                    currentBiomarker = null;
+                    renderSidebar();
+                    renderMainContent();
+                } else if (view === 'longitudinal' && biomarker) {
+                    currentTestIndex = testIndex;
+                    currentView = 'longitudinal';
+                    currentBiomarker = biomarker;
+                    renderSidebar();
+                    renderMainContent();
+                }
+            } else {
+                // No state means we're at the initial page.
+                parseInitialUrl();
+                renderSidebar();
+                renderMainContent();
+            }
+
+            isNavigating = false;
+        }
+
+        // Parse the initial URL to determine the view.
+        function parseInitialUrl() {
+            const path = window.location.pathname;
+            const params = new URLSearchParams(window.location.search);
+
+            if (path.startsWith('/biomarker/')) {
+                // Longitudinal view.
+                const biomarkerName = decodeURIComponent(path.substring('/biomarker/'.length));
+                const testIndex = parseInt(params.get('test') || '0', 10);
+
+                if (biomarkerName && testIndex >= 0 && testIndex < testsData.length) {
+                    currentTestIndex = testIndex;
+                    currentView = 'longitudinal';
+                    currentBiomarker = biomarkerName;
+                    return;
+                }
+            }
+
+            // Report view (default).
+            const testIndex = parseInt(params.get('test') || '0', 10);
+            currentTestIndex = Math.min(Math.max(0, testIndex), testsData.length - 1);
+            currentView = 'report';
+            currentBiomarker = null;
+        }
+
+        // Initialize the app.
+        async function init() {
+            try {
+                const response = await fetch('./data.json');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch data.json');
+                }
+
+                const data = await response.json();
+
+                // Validate schema version.
+                if (data.schemaVersion !== 1) {
+                    throw new Error('Unsupported schema version');
+                }
+
+                // Sort tests by date descending (most recent first).
+                testsData = data.tests.sort((a, b) => {
+                    return new Date(b.date) - new Date(a.date);
+                });
+
+                if (testsData.length === 0) {
+                    throw new Error('No test data found');
+                }
+
+                // Hide loading, show app.
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('app').style.display = 'flex';
+                document.getElementById('app').style.flexDirection = 'column';
+                document.getElementById('app').style.height = '100vh';
+
+                // Parse initial URL and set up the initial state.
+                parseInitialUrl();
+
+                // Set up the initial history state.
+                const initialState = {
+                    view: currentView,
+                    testIndex: currentTestIndex,
+                    biomarker: currentBiomarker
+                };
+                history.replaceState(initialState, '', window.location.href);
+
+                // Add popstate event listener for back/forward navigation.
+                window.addEventListener('popstate', handlePopState);
+
+                // Render the UI.
+                renderSidebar();
+                renderMainContent();
+
+            } catch (error) {
+                console.error('Error loading data:', error);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'flex';
+            }
+        }
+
+        // Start the app when DOM is ready.
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    </script>
+</body>
+</html>
