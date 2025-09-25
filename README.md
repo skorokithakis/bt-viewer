@@ -9,6 +9,15 @@ A static HTML application for viewing personal blood test results with no backen
 - **Important biomarkers**: Automatically highlights biomarkers that are currently out of range or have been abnormal in recent tests
 - **Static deployment**: No server required - works as a simple HTML file with embedded data
 
+## Screenshots
+
+### Main page
+![Main page showing test history and results](docs/main-page.png)
+
+### Biomarker history
+![Glucose levels over time](docs/glucose-history.png)
+![Cholesterol levels over time](docs/cholesterol-history.png)
+
 ## Getting started
 
 ### Prerequisites
