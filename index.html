@@ -721,11 +721,26 @@
 
         // Get status for a biomarker.
         function getStatus(value, low, high) {
-            const inRange = checkInRange(value, low, high);
-            if (inRange === true) return { text: 'In range', class: 'status-in-range' };
-            if (inRange === false) return { text: 'Out of range', class: 'status-out-of-range' };
-            // For non-numeric values or no range defined.
-            return { text: 'No range', class: 'status-no-range' };
+            const numericValue = parseNumeric(value);
+            if (numericValue === null) {
+                return { text: 'No range', class: 'status-no-range' };
+            }
+
+            // If both bounds are null, there's no range to check.
+            if (low === null && high === null) {
+                return { text: 'No range', class: 'status-no-range' };
+            }
+
+            // Check if value is high or low.
+            if (high !== null && numericValue > high) {
+                return { text: 'High', class: 'status-out-of-range' };
+            }
+            if (low !== null && numericValue < low) {
+                return { text: 'Low', class: 'status-out-of-range' };
+            }
+
+            // Value is within range.
+            return { text: 'Normal', class: 'status-in-range' };
         }
 
         // Get value color class.
