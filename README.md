@@ -1,6 +1,6 @@
 # Blood test viewer
 
-A static HTML application for viewing personal blood test results with no backend or database required. All data is embedded at build time from a CSV file.
+A static HTML application for viewing personal blood test results with no backend or database required. All data is embedded at build time from a CSV or OpenDocument file.
 
 ## Features
 
@@ -13,21 +13,21 @@ A static HTML application for viewing personal blood test results with no backen
 
 ### Prerequisites
 
-- Python 3.x for the CSV to JSON converter
+- Python 3.x for the CSV/ODS to JSON converter
 - A modern web browser (Chrome, Firefox, Safari, or Edge)
 
 ### Setup
 
-1. Prepare your blood test data in CSV format (see format below)
+1. Prepare your blood test data in CSV/ODS format (see format below)
 2. Run the Python converter to generate `data.json`:
    ```bash
-   python converter.py input.csv
+   python converter.py input.ods
    ```
 3. Open `index.html` in your web browser
 
-## CSV input format
+## Spreadsheet input format
 
-Your CSV file should have the following structure:
+Your spreadsheet should have the following structure:
 
 ### Required columns
 - **Date**: Test date (ISO-8601 format recommended, e.g., "2024-06-12")

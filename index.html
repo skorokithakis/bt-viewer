@@ -145,6 +145,30 @@
             padding: 2rem;
             overflow-y: auto;
             background: #fff;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .main-content-wrapper {
+            flex: 1;
+        }
+
+        footer {
+            margin-top: 3rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e1e8ed;
+            text-align: center;
+            color: #718096;
+            font-size: 0.875rem;
+        }
+
+        footer a {
+            color: #4299e1;
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
         }
 
         .back-button {
@@ -719,6 +743,7 @@
             const importantBiomarkers = findImportantBiomarkers(currentTestIndex);
 
             let html = `
+                <div class="main-content-wrapper">
                 <div class="test-header">
                     <div class="lab-name">${currentTest.labName}</div>
                     <div class="test-date">${formatDate(currentTest.date)}</div>
@@ -822,6 +847,10 @@
                         </tbody>
                     </table>
                 </div>
+                </div>
+                <footer>
+                    Made with ❤️ by Stavros with <a href="https://github.com/skorokithakis/bt-viewer" target="_blank">blood test viewer</a>
+                </footer>
             `;
 
             mainContent.innerHTML = html;
@@ -903,11 +932,16 @@
             dataPoints.reverse();
 
             let html = `
+                <div class="main-content-wrapper">
                 <button class="back-button" onclick="backToReport()">← Back to report</button>
                 <div class="chart-title">${currentBiomarker}${unit ? ' (' + unit + ')' : ''}</div>
                 <div class="chart-container">
                     <canvas id="biomarker-chart"></canvas>
                 </div>
+                </div>
+                <footer>
+                    Made with ❤️ by Stavros with <a href="https://github.com/skorokithakis/bt-viewer" target="_blank">blood test viewer</a>
+                </footer>
             `;
 
             mainContent.innerHTML = html;
