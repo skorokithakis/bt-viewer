@@ -98,7 +98,13 @@ Definitions
 ### 6.1 Layout
 - Header (app title) + persistent left sidebar (tests list) + main content area.
 - Default landing: single-report view for the latest test (by date).
-- Sidebar is always visible.
+- Desktop: Sidebar is always visible.
+- Mobile (≤768px):
+  - Sidebar is hidden by default and slides in from the left when hamburger menu is clicked.
+  - Hamburger menu button appears in the header (3 horizontal lines icon).
+  - Semi-transparent overlay appears behind sidebar when open.
+  - Sidebar automatically closes when a test is selected.
+  - Main content takes full width when sidebar is hidden.
 
 ### 6.2 Left Sidebar: Tests List
 - Content per test item:

@@ -25,11 +25,44 @@
             padding: 1rem 1.5rem;
             border-bottom: 1px solid #e1e8ed;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
 
         header h1 {
             font-size: 1.5rem;
             color: #1a202c;
+        }
+
+        .hamburger {
+            display: none;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0.5rem;
+            margin-right: -0.5rem;
+        }
+
+        .hamburger span {
+            display: block;
+            width: 24px;
+            height: 2px;
+            background: #2c3e50;
+            margin: 5px 0;
+            transition: all 0.3s;
+        }
+
+        .hamburger.active span:nth-child(1) {
+            transform: rotate(45deg) translate(5px, 5px);
+        }
+
+        .hamburger.active span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .hamburger.active span:nth-child(3) {
+            transform: rotate(-45deg) translate(7px, -6px);
         }
 
         .app-container {
@@ -44,6 +77,18 @@
             border-right: 1px solid #e1e8ed;
             overflow-y: auto;
             flex-shrink: 0;
+            transition: transform 0.3s ease;
+        }
+
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 998;
         }
 
         .sidebar h2 {
@@ -317,6 +362,56 @@
         .error h2 {
             margin-bottom: 0.5rem;
         }
+
+        /* Responsive styles. */
+        @media (max-width: 768px) {
+            .hamburger {
+                display: block;
+            }
+
+            .app-container {
+                position: relative;
+            }
+
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                bottom: 0;
+                z-index: 999;
+                transform: translateX(-100%);
+                box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .overlay.show {
+                display: block;
+            }
+
+            .main-content {
+                width: 100%;
+                padding: 1.5rem;
+            }
+
+            .biomarker-cards {
+                grid-template-columns: 1fr;
+            }
+
+            table {
+                font-size: 0.875rem;
+            }
+
+            th, td {
+                padding: 0.5rem;
+            }
+
+            .test-header .lab-name {
+                font-size: 2rem;
+            }
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
@@ -333,9 +428,15 @@
     <div id="app" style="display: none;">
         <header>
             <h1>Blood test viewer</h1>
+            <button class="hamburger" id="hamburger" aria-label="Menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
         </header>
         <div class="app-container">
-            <aside class="sidebar">
+            <div class="overlay" id="overlay"></div>
+            <aside class="sidebar" id="sidebar">
                 <h2>Test history</h2>
                 <ul id="test-list" class="test-list"></ul>
             </aside>
@@ -351,6 +452,38 @@
         let currentBiomarker = null;
         let chartInstance = null;
         let isNavigating = false;  // Flag to prevent duplicate history pushes.
+        let sidebarOpen = false;  // Track sidebar state on mobile.
+
+        // Check if we're on a mobile device (screen width <= 768px).
+        function isMobile() {
+            return window.innerWidth <= 768;
+        }
+
+        // Toggle sidebar visibility on mobile.
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+            const hamburger = document.getElementById('hamburger');
+
+            sidebarOpen = !sidebarOpen;
+
+            if (sidebarOpen) {
+                sidebar.classList.add('open');
+                overlay.classList.add('show');
+                hamburger.classList.add('active');
+            } else {
+                sidebar.classList.remove('open');
+                overlay.classList.remove('show');
+                hamburger.classList.remove('active');
+            }
+        }
+
+        // Close sidebar if open (for mobile).
+        function closeSidebar() {
+            if (sidebarOpen) {
+                toggleSidebar();
+            }
+        }
 
         // Utility function to check if a value is numeric.
         function isNumeric(value) {
@@ -709,6 +842,11 @@
                 history.pushState(state, '', url);
             }
 
+            // Close sidebar on mobile after selection.
+            if (isMobile()) {
+                closeSidebar();
+            }
+
             renderSidebar();
             renderMainContent();
         }
@@ -1019,6 +1157,17 @@
 
                 // Add popstate event listener for back/forward navigation.
                 window.addEventListener('popstate', handlePopState);
+
+                // Add event listeners for mobile menu.
+                document.getElementById('hamburger').addEventListener('click', toggleSidebar);
+                document.getElementById('overlay').addEventListener('click', closeSidebar);
+
+                // Handle window resize to close sidebar when switching from mobile to desktop.
+                window.addEventListener('resize', () => {
+                    if (!isMobile() && sidebarOpen) {
+                        closeSidebar();
+                    }
+                });
 
                 // Render the UI.
                 renderSidebar();
