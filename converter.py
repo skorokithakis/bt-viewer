@@ -21,13 +21,13 @@ def parse_date(date_str: str) -> str:
     Raises ValueError if the date cannot be parsed.
     """
     date_formats = [
-        '%Y-%m-%d',  # ISO format
-        '%Y/%m/%d',
-        '%d/%m/%Y',  # European format
-        '%m/%d/%Y',  # US format
-        '%d-%m-%Y',
-        '%m-%d-%Y',
-        '%Y%m%d',    # Compact format
+        "%Y-%m-%d",  # ISO format
+        "%Y/%m/%d",
+        "%d/%m/%Y",  # European format
+        "%m/%d/%Y",  # US format
+        "%d-%m-%Y",
+        "%m-%d-%Y",
+        "%Y%m%d",  # Compact format
     ]
 
     date_str = date_str.strip()
@@ -35,7 +35,7 @@ def parse_date(date_str: str) -> str:
     for fmt in date_formats:
         try:
             dt = datetime.strptime(date_str, fmt)
-            return dt.strftime('%Y-%m-%d')
+            return dt.strftime("%Y-%m-%d")
         except ValueError:
             continue
 
@@ -54,7 +54,7 @@ def parse_biomarker_header(header: str) -> dict:
 
     # Pattern to match: Name {unit} [range] where unit and range are optional.
     # First try with both unit and range.
-    pattern_full = r'^(.+?)\s*\{([^}]*)\}\s*\[([^\]]*)\]$'
+    pattern_full = r"^(.+?)\s*\{([^}]*)\}\s*\[([^\]]*)\]$"
     match = re.match(pattern_full, header.strip())
 
     if match:
@@ -63,16 +63,16 @@ def parse_biomarker_header(header: str) -> dict:
         range_str = match.group(3).strip()
     else:
         # Try with just unit, no range.
-        pattern_unit = r'^(.+?)\s*\{([^}]*)\}$'
+        pattern_unit = r"^(.+?)\s*\{([^}]*)\}$"
         match = re.match(pattern_unit, header.strip())
 
         if match:
             name = match.group(1).strip()
             unit = match.group(2).strip() if match.group(2) else None
-            range_str = ''
+            range_str = ""
         else:
             # Try with just range, no unit.
-            pattern_range = r'^(.+?)\s*\[([^\]]*)\]$'
+            pattern_range = r"^(.+?)\s*\[([^\]]*)\]$"
             match = re.match(pattern_range, header.strip())
 
             if match:
@@ -83,14 +83,14 @@ def parse_biomarker_header(header: str) -> dict:
                 # No unit or range, just the name.
                 name = header.strip()
                 unit = None
-                range_str = ''
+                range_str = ""
 
     # Parse the range.
     low = None
     high = None
     if range_str:
-        if '-' in range_str:
-            parts = range_str.split('-', 1)
+        if "-" in range_str:
+            parts = range_str.split("-", 1)
             if parts[0].strip():
                 try:
                     low = float(parts[0].strip())
@@ -108,15 +108,10 @@ def parse_biomarker_header(header: str) -> dict:
             except ValueError:
                 pass
 
-    return {
-        'name': name,
-        'unit': unit,
-        'low': low,
-        'high': high
-    }
+    return {"name": name, "unit": unit, "low": low, "high": high}
 
 
-def convert_csv_to_json(csv_path: str, output_path: str = 'data.json') -> None:
+def convert_csv_to_json(csv_path: str, output_path: str = "data.json") -> None:
     """
     Convert a CSV file with blood test data to JSON format.
 
@@ -124,7 +119,7 @@ def convert_csv_to_json(csv_path: str, output_path: str = 'data.json') -> None:
     """
     tests = []
 
-    with open(csv_path, 'r', encoding='utf-8') as csvfile:
+    with open(csv_path, "r", encoding="utf-8") as csvfile:
         reader = csv.DictReader(csvfile)
 
         if not reader.fieldnames:
@@ -137,14 +132,14 @@ def convert_csv_to_json(csv_path: str, output_path: str = 'data.json') -> None:
 
         for field in reader.fieldnames:
             field_lower = field.lower().strip()
-            if 'date' in field_lower:
+            if "date" in field_lower:
                 date_col = field
-            elif 'lab' in field_lower:
+            elif "lab" in field_lower:
                 lab_col = field
             else:
                 # Parse biomarker header.
                 parsed = parse_biomarker_header(field)
-                if parsed['name']:  # Valid biomarker
+                if parsed["name"]:  # Valid biomarker
                     biomarker_columns[field] = parsed
 
         if not date_col:
@@ -160,9 +155,11 @@ def convert_csv_to_json(csv_path: str, output_path: str = 'data.json') -> None:
             sys.exit(1)
 
         # Process each row
-        for row_num, row in enumerate(reader, start=2):  # Start at 2 because row 1 is headers
+        for row_num, row in enumerate(
+            reader, start=2
+        ):  # Start at 2 because row 1 is headers
             # Skip rows with empty date
-            if not row.get(date_col, '').strip():
+            if not row.get(date_col, "").strip():
                 continue
 
             # Check for required fields
@@ -180,36 +177,37 @@ def convert_csv_to_json(csv_path: str, output_path: str = 'data.json') -> None:
             # Process biomarkers for this test
             biomarkers = []
             for col, info in biomarker_columns.items():
-                value = row.get(col, '').strip()
+                value = row.get(col, "").strip()
 
                 # Skip empty values (they may be legitimately missing for some tests)
-                if value == '' or value == '.':
+                if value == "" or value == ".":
                     continue
 
                 # Add biomarker with parsed info
-                biomarkers.append({
-                    'name': info['name'],
-                    'value': value,
-                    'unit': info.get('unit'),
-                    'low': info.get('low'),
-                    'high': info.get('high')
-                })
+                biomarkers.append(
+                    {
+                        "name": info["name"],
+                        "value": value,
+                        "unit": info.get("unit"),
+                        "low": info.get("low"),
+                        "high": info.get("high"),
+                    }
+                )
 
             if biomarkers:  # Only add test if it has biomarkers
-                tests.append({
-                    'date': date_iso,
-                    'labName': row[lab_col].strip(),
-                    'biomarkers': biomarkers
-                })
+                tests.append(
+                    {
+                        "date": date_iso,
+                        "labName": row[lab_col].strip(),
+                        "biomarkers": biomarkers,
+                    }
+                )
 
     # Create the output JSON structure
-    output_data = {
-        'schemaVersion': 1,
-        'tests': tests
-    }
+    output_data = {"schemaVersion": 1, "tests": tests}
 
     # Write to output file
-    with open(output_path, 'w', encoding='utf-8') as jsonfile:
+    with open(output_path, "w", encoding="utf-8") as jsonfile:
         json.dump(output_data, jsonfile, indent=2, ensure_ascii=False)
 
     print(f"Successfully converted {len(tests)} tests to {output_path}")
@@ -219,11 +217,14 @@ def main():
     """Main entry point for the converter."""
     if len(sys.argv) < 2:
         print("Usage: python converter.py <input.csv> [output.json]", file=sys.stderr)
-        print("       If output path is not specified, defaults to 'data.json'", file=sys.stderr)
+        print(
+            "       If output path is not specified, defaults to 'data.json'",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     csv_path = sys.argv[1]
-    output_path = sys.argv[2] if len(sys.argv) > 2 else 'data.json'
+    output_path = sys.argv[2] if len(sys.argv) > 2 else "data.json"
 
     if not Path(csv_path).exists():
         print(f"Error: CSV file '{csv_path}' not found", file=sys.stderr)
@@ -236,5 +237,5 @@ def main():
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
