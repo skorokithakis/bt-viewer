@@ -118,6 +118,23 @@
             background: #3182ce;
         }
 
+        .test-header {
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .test-header .lab-name {
+            font-size: 2.75rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+        }
+
+        .test-header .test-date {
+            font-size: 1rem;
+            color: #718096;
+        }
+
         .important-biomarkers {
             margin-bottom: 2rem;
         }
@@ -569,6 +586,10 @@
             const importantBiomarkers = findImportantBiomarkers(currentTestIndex);
 
             let html = `
+                <div class="test-header">
+                    <div class="lab-name">${currentTest.labName}</div>
+                    <div class="test-date">${formatDate(currentTest.date)}</div>
+                </div>
                 <div class="important-biomarkers">
                     <h2>Important biomarkers</h2>
             `;
