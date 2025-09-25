@@ -889,9 +889,8 @@
 
             if (!skipHistory && !isNavigating) {
                 const test = testsData[index];
-                const state = { view: 'report', testIndex: index };
-                const url = index === 0 ? '/' : `/?test=${index}`;
-                history.pushState(state, '', url);
+                const hash = index === 0 ? '#/' : `#/?test=${index}`;
+                window.location.hash = hash;
             }
 
             // Close sidebar on mobile after selection.
@@ -911,13 +910,8 @@
             currentBiomarker = biomarkerName;
 
             if (!skipHistory && !isNavigating) {
-                const state = {
-                    view: 'longitudinal',
-                    testIndex: currentTestIndex,
-                    biomarker: biomarkerName
-                };
-                const url = `/biomarker/${encodeURIComponent(biomarkerName)}?test=${currentTestIndex}`;
-                history.pushState(state, '', url);
+                const hash = `#/biomarker/${encodeURIComponent(biomarkerName)}?test=${currentTestIndex}`;
+                window.location.hash = hash;
             }
 
             renderMainContent();
@@ -1116,44 +1110,31 @@
             }
         }
 
-        // Handle browser back/forward button clicks.
-        function handlePopState(event) {
+        // Handle hash change events for navigation.
+        function handleHashChange() {
             isNavigating = true;
 
-            if (event.state) {
-                const { view, testIndex, biomarker } = event.state;
-
-                if (view === 'report') {
-                    currentTestIndex = testIndex;
-                    currentView = 'report';
-                    currentBiomarker = null;
-                    renderSidebar();
-                    renderMainContent();
-                } else if (view === 'longitudinal' && biomarker) {
-                    currentTestIndex = testIndex;
-                    currentView = 'longitudinal';
-                    currentBiomarker = biomarker;
-                    renderSidebar();
-                    renderMainContent();
-                }
-            } else {
-                // No state means we're at the initial page.
-                parseInitialUrl();
-                renderSidebar();
-                renderMainContent();
-            }
+            // Parse the new hash to determine the view.
+            parseHashUrl();
+            renderSidebar();
+            renderMainContent();
 
             isNavigating = false;
         }
 
-        // Parse the initial URL to determine the view.
-        function parseInitialUrl() {
-            const path = window.location.pathname;
-            const params = new URLSearchParams(window.location.search);
+        // Parse the URL hash to determine the view.
+        function parseHashUrl() {
+            const hash = window.location.hash || '#/';
+            // Remove the # and parse the rest.
+            const hashContent = hash.substring(1) || '/';
 
-            if (path.startsWith('/biomarker/')) {
+            // Split hash into path and query parts.
+            const [hashPath, hashQuery] = hashContent.split('?');
+            const params = new URLSearchParams(hashQuery || '');
+
+            if (hashPath.startsWith('/biomarker/')) {
                 // Longitudinal view.
-                const biomarkerName = decodeURIComponent(path.substring('/biomarker/'.length));
+                const biomarkerName = decodeURIComponent(hashPath.substring('/biomarker/'.length));
                 const testIndex = parseInt(params.get('test') || '0', 10);
 
                 if (biomarkerName && testIndex >= 0 && testIndex < testsData.length) {
@@ -1201,19 +1182,16 @@
                 document.getElementById('app').style.flexDirection = 'column';
                 document.getElementById('app').style.height = '100vh';
 
-                // Parse initial URL and set up the initial state.
-                parseInitialUrl();
+                // Parse initial URL hash and set up the initial state.
+                parseHashUrl();
 
-                // Set up the initial history state.
-                const initialState = {
-                    view: currentView,
-                    testIndex: currentTestIndex,
-                    biomarker: currentBiomarker
-                };
-                history.replaceState(initialState, '', window.location.href);
+                // If no hash is present, set default hash.
+                if (!window.location.hash) {
+                    window.location.hash = '#/';
+                }
 
-                // Add popstate event listener for back/forward navigation.
-                window.addEventListener('popstate', handlePopState);
+                // Add hashchange event listener for back/forward navigation.
+                window.addEventListener('hashchange', handleHashChange);
 
                 // Add event listeners for mobile menu.
                 document.getElementById('hamburger').addEventListener('click', toggleSidebar);
