@@ -2,3 +2,4 @@
 *.csv
 .playwright-mcp/
 CLAUDE.md
+*.ods
