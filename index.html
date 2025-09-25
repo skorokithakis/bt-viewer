@@ -36,7 +36,7 @@
         }
 
         .hamburger {
-            display: none;
+            display: block;
             background: none;
             border: none;
             cursor: pointer;
@@ -62,7 +62,7 @@
         }
 
         .hamburger.active span:nth-child(3) {
-            transform: rotate(-45deg) translate(7px, -6px);
+            transform: rotate(-45deg) translate(5px, -5px);
         }
 
         .app-container {
@@ -77,7 +77,15 @@
             border-right: 1px solid #e1e8ed;
             overflow-y: auto;
             flex-shrink: 0;
-            transition: transform 0.3s ease;
+            transition: margin-left 0.3s ease, transform 0.3s ease;
+            margin-left: -280px;  /* Start hidden by default. */
+        }
+
+        /* Show sidebar when open on desktop. */
+        @media (min-width: 769px) {
+            .sidebar.open {
+                margin-left: 0;
+            }
         }
 
         .overlay {
@@ -389,9 +397,6 @@
 
         /* Responsive styles. */
         @media (max-width: 768px) {
-            .hamburger {
-                display: block;
-            }
 
             .app-container {
                 position: relative;
@@ -476,14 +481,14 @@
         let currentBiomarker = null;
         let chartInstance = null;
         let isNavigating = false;  // Flag to prevent duplicate history pushes.
-        let sidebarOpen = false;  // Track sidebar state on mobile.
+        let sidebarOpen = true;  // Track sidebar state - start open by default.
 
         // Check if we're on a mobile device (screen width <= 768px).
         function isMobile() {
             return window.innerWidth <= 768;
         }
 
-        // Toggle sidebar visibility on mobile.
+        // Toggle sidebar visibility.
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('overlay');
@@ -493,8 +498,11 @@
 
             if (sidebarOpen) {
                 sidebar.classList.add('open');
-                overlay.classList.add('show');
                 hamburger.classList.add('active');
+                // Only show overlay on mobile.
+                if (isMobile()) {
+                    overlay.classList.add('show');
+                }
             } else {
                 sidebar.classList.remove('open');
                 overlay.classList.remove('show');
@@ -1211,11 +1219,19 @@
                 document.getElementById('hamburger').addEventListener('click', toggleSidebar);
                 document.getElementById('overlay').addEventListener('click', closeSidebar);
 
-                // Handle window resize to close sidebar when switching from mobile to desktop.
+                // Initialize sidebar state - open on desktop, closed on mobile.
+                if (!isMobile()) {
+                    const sidebar = document.getElementById('sidebar');
+                    const hamburger = document.getElementById('hamburger');
+                    sidebar.classList.add('open');
+                    hamburger.classList.add('active');
+                } else {
+                    sidebarOpen = false;  // Start closed on mobile.
+                }
+
+                // Handle window resize to manage sidebar state.
                 window.addEventListener('resize', () => {
-                    if (!isMobile() && sidebarOpen) {
-                        closeSidebar();
-                    }
+                    // No need to auto-close/open on resize, let user control it.
                 });
 
                 // Render the UI.

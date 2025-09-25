@@ -225,7 +225,9 @@ def convert_data_to_json(data: list, output_path: str = "data.json") -> None:
         sys.exit(1)
 
     # Process each row.
-    for row_num, row in enumerate(data, start=2):  # Start at 2 because row 1 is headers.
+    for row_num, row in enumerate(
+        data, start=2
+    ):  # Start at 2 because row 1 is headers.
         # Skip rows with empty date.
         if not row.get(date_col, "").strip():
             continue
@@ -284,7 +286,10 @@ def convert_data_to_json(data: list, output_path: str = "data.json") -> None:
 def main():
     """Main entry point for the converter."""
     if len(sys.argv) < 2:
-        print("Usage: python converter.py <input.csv|input.ods> [output.json]", file=sys.stderr)
+        print(
+            "Usage: python converter.py <input.csv|input.ods> [output.json]",
+            file=sys.stderr,
+        )
         print(
             "       Supports CSV and ODS (OpenDocument Spreadsheet) files",
             file=sys.stderr,
@@ -315,7 +320,10 @@ def main():
                 reader = csv.DictReader(csvfile)
                 data = list(reader)
         else:
-            print(f"Error: Unsupported file type '{file_extension}'. Use CSV or ODS.", file=sys.stderr)
+            print(
+                f"Error: Unsupported file type '{file_extension}'. Use CSV or ODS.",
+                file=sys.stderr,
+            )
             sys.exit(1)
 
         # Convert to JSON.
