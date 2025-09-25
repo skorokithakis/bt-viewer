@@ -150,6 +150,7 @@ Full Results Table
   - Sparkline or compact line chart across all tests.
   - Points plotted only for numeric values. Non-numeric results are omitted from the line but can be listed as annotations in a side note if desired (optional).
   - Background band showing the normal reference range (green shaded area). If only low or high is available, shade from bound to chart edge; if no range, no band.
+  - Y-axis scaling: The chart's y-axis should be determined solely by the data range with 20% padding above the maximum value and below the minimum value. The normal range bands should not influence the chart bounds.
 - Interactions (must-have):
   - Hover tooltip showing date and value (and unit).
 - Nice-to-haves:

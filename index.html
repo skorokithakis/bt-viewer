@@ -769,23 +769,46 @@
                 borderWidth: 2,
                 pointRadius: 4,
                 pointHoverRadius: 6,
+                pointHoverBackgroundColor: '#2563eb',
+                pointHoverBorderColor: '#2563eb',
                 tension: 0.1
             }];
+
+            // Calculate y-axis bounds for proper display based on data only.
+            const minY = Math.min(...dataPoints.map(p => p.y));
+            const maxY = Math.max(...dataPoints.map(p => p.y));
+            const range = maxY - minY;
+            const padding = range * 0.2;
+
+            // Chart bounds should be based on data range only, with 20% padding.
+            const chartYMin = minY - padding;
+            const chartYMax = maxY + padding;
 
             // Add reference range bands if available.
             const annotations = {};
             if (low !== null || high !== null) {
-                const minY = Math.min(...dataPoints.map(p => p.y));
-                const maxY = Math.max(...dataPoints.map(p => p.y));
-                const range = maxY - minY;
-                const padding = range * 0.2;
-
                 // Create green band for normal range.
-                // When only one bound exists, extend to chart edge.
+                // Extend the annotation to chart edges when only one bound exists.
+                let annotationYMin, annotationYMax;
+
+                if (low !== null && high === null) {
+                    // Only lower bound (like HDL ≥ 40) - extend to top of chart.
+                    annotationYMin = low;
+                    annotationYMax = chartYMax + range;  // Extend well beyond chart top.
+                } else if (low === null && high !== null) {
+                    // Only upper bound (like LDL ≤ 129) - extend to bottom of chart.
+                    annotationYMin = chartYMin - range;  // Extend well below chart bottom.
+                    annotationYMax = high;
+                } else {
+                    // Both bounds exist.
+                    annotationYMin = low;
+                    annotationYMax = high;
+                }
+
                 annotations.box1 = {
                     type: 'box',
-                    yMin: low !== null ? low : minY - padding * 3,
-                    yMax: high !== null ? high : maxY + padding * 3,
+                    yMin: annotationYMin,
+                    yMax: annotationYMax,
                     backgroundColor: 'rgba(72, 187, 120, 0.15)',
                     borderColor: 'rgba(72, 187, 120, 0.3)',
                     borderWidth: 1
@@ -804,6 +827,22 @@
                         intersect: false,
                         mode: 'index'
                     },
+                    onHover: function(event, elements) {
+                        ctx.canvas.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+                    },
+                    onClick: function(event, elements) {
+                        if (elements.length > 0) {
+                            const element = elements[0];
+                            const dataPoint = dataPoints[element.index];
+                            const testDate = dataPoint.x;
+
+                            // Find the test index by date.
+                            const testIndex = testsData.findIndex(test => test.date === testDate);
+                            if (testIndex !== -1) {
+                                selectTest(testIndex);
+                            }
+                        }
+                    },
                     scales: {
                         x: {
                             type: 'time',
@@ -819,6 +858,8 @@
                             }
                         },
                         y: {
+                            min: chartYMin,
+                            max: chartYMax,
                             title: {
                                 display: true,
                                 text: unit || 'Value'

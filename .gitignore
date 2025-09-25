@@ -1,3 +1,4 @@
 *.json
 *.csv
 .playwright-mcp/
+CLAUDE.md
