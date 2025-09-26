@@ -370,10 +370,21 @@
             position: relative;
         }
 
-        .chart-title {
-            font-size: 1.25rem;
-            color: #2d3748;
+        .chart-header {
             margin-bottom: 1rem;
+        }
+
+        .chart-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #2d3748;
+            margin-right: 1rem;
+        }
+
+        .chart-range {
+            font-size: 1rem;
+            font-weight: 400;
+            color: #718096;
         }
 
         .loading {
@@ -952,10 +963,23 @@
             // Reverse to show chronologically.
             dataPoints.reverse();
 
+            // Format the range text.
+            let rangeText = '';
+            if (low !== null && high !== null) {
+                rangeText = `${low} - ${high}`;
+            } else if (low !== null) {
+                rangeText = `≥ ${low}`;
+            } else if (high !== null) {
+                rangeText = `≤ ${high}`;
+            }
+
             let html = `
                 <div class="main-content-wrapper">
                 <button class="back-button" onclick="backToReport()">← Back to report</button>
-                <div class="chart-title">${currentBiomarker}${unit ? ' (' + unit + ')' : ''}</div>
+                <div class="chart-header">
+                    <span class="chart-title">${currentBiomarker}</span>
+                    <span class="chart-range">${rangeText}${unit ? ' ' + unit : ''}</span>
+                </div>
                 <div class="chart-container">
                     <canvas id="biomarker-chart"></canvas>
                 </div>
