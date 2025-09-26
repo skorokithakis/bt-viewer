@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Blood test viewer</title>
+    <title>Dracula</title>
     <style>
         * {
             margin: 0;
@@ -27,12 +27,16 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            position: relative;
         }
 
         header h1 {
             font-size: 1.5rem;
             color: #1a202c;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            margin: 0;
         }
 
         .hamburger {
@@ -41,7 +45,7 @@
             border: none;
             cursor: pointer;
             padding: 0.5rem;
-            margin-right: -0.5rem;
+            margin-left: -0.5rem;
         }
 
         .hamburger span {
@@ -456,12 +460,12 @@
     </div>
     <div id="app" style="display: none;">
         <header>
-            <h1>Blood test viewer</h1>
             <button class="hamburger" id="hamburger" aria-label="Menu">
                 <span></span>
                 <span></span>
                 <span></span>
             </button>
+            <h1>Dracula</h1>
         </header>
         <div class="app-container">
             <div class="overlay" id="overlay"></div>

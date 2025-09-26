@@ -1,4 +1,4 @@
-# Blood test viewer
+# Dracula
 
 A static HTML application for viewing personal blood test results with no backend or database required. All data is embedded at build time from a CSV or OpenDocument file.
 
