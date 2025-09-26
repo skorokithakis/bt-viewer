@@ -491,6 +491,7 @@
     <script>
         // Global data storage.
         let testsData = [];
+        let categories = {};
         let currentTestIndex = 0;
         let currentView = 'report';  // 'report' or 'longitudinal'
         let currentBiomarker = null;
@@ -693,6 +694,51 @@
             return { direction, color };
         }
 
+        // Group biomarkers by category.
+        function groupBiomarkersByCategory(biomarkers) {
+            const grouped = {};
+            const uncategorized = [];
+
+            // Initialize groups for each category.
+            for (const [categoryName, categoryBiomarkers] of Object.entries(categories)) {
+                grouped[categoryName] = [];
+            }
+
+            // Sort biomarkers into their categories.
+            for (const biomarker of biomarkers) {
+                let found = false;
+                for (const [categoryName, categoryBiomarkers] of Object.entries(categories)) {
+                    if (categoryBiomarkers.includes(biomarker.name)) {
+                        grouped[categoryName].push(biomarker);
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    uncategorized.push(biomarker);
+                }
+            }
+
+            // Sort biomarkers within each category according to the category list order.
+            for (const [categoryName, categoryBiomarkers] of Object.entries(categories)) {
+                grouped[categoryName].sort((a, b) => {
+                    const indexA = categoryBiomarkers.indexOf(a.name);
+                    const indexB = categoryBiomarkers.indexOf(b.name);
+                    return indexA - indexB;
+                });
+            }
+
+            // Sort uncategorized alphabetically.
+            uncategorized.sort((a, b) => a.name.localeCompare(b.name));
+
+            // Add uncategorized as "Other" if there are any.
+            if (uncategorized.length > 0) {
+                grouped["Other"] = uncategorized;
+            }
+
+            return grouped;
+        }
+
         // Get arrow symbol.
         function getArrowSymbol(direction) {
             switch (direction) {
@@ -874,27 +920,41 @@
                         <tbody>
             `;
 
-            for (const biomarker of currentTest.biomarkers) {
-                const status = getStatus(biomarker.value, biomarker.low, biomarker.high);
+            const groupedBiomarkers = groupBiomarkersByCategory(currentTest.biomarkers);
 
-                let rangeText = '';
-                if (biomarker.low !== null && biomarker.high !== null) {
-                    rangeText = `${biomarker.low} - ${biomarker.high}`;
-                } else if (biomarker.low !== null) {
-                    rangeText = `≥ ${biomarker.low}`;
-                } else if (biomarker.high !== null) {
-                    rangeText = `≤ ${biomarker.high}`;
-                }
+            for (const [categoryName, biomarkers] of Object.entries(groupedBiomarkers)) {
+                if (biomarkers.length === 0) continue;
 
+                // Add category header row.
                 html += `
-                    <tr onclick="showLongitudinalView('${biomarker.name}')">
-                        <td>${biomarker.name}</td>
-                        <td>${biomarker.value}</td>
-                        <td>${biomarker.unit || ''}</td>
-                        <td>${rangeText}</td>
-                        <td class="${status.class}">${status.text}</td>
+                    <tr style="background-color: #e2e8f0; font-weight: 600;">
+                        <td colspan="5" style="padding: 0.75rem; color: #2d3748;">${categoryName}</td>
                     </tr>
                 `;
+
+                // Add biomarkers for this category.
+                for (const biomarker of biomarkers) {
+                    const status = getStatus(biomarker.value, biomarker.low, biomarker.high);
+
+                    let rangeText = '';
+                    if (biomarker.low !== null && biomarker.high !== null) {
+                        rangeText = `${biomarker.low} - ${biomarker.high}`;
+                    } else if (biomarker.low !== null) {
+                        rangeText = `≥ ${biomarker.low}`;
+                    } else if (biomarker.high !== null) {
+                        rangeText = `≤ ${biomarker.high}`;
+                    }
+
+                    html += `
+                        <tr onclick="showLongitudinalView('${biomarker.name}')">
+                            <td>${biomarker.name}</td>
+                            <td>${biomarker.value}</td>
+                            <td>${biomarker.unit || ''}</td>
+                            <td>${rangeText}</td>
+                            <td class="${status.class}">${status.text}</td>
+                        </tr>
+                    `;
+                }
             }
 
             html += `
@@ -1209,6 +1269,11 @@
                 // Validate schema version.
                 if (data.schemaVersion !== 1) {
                     throw new Error('Unsupported schema version');
+                }
+
+                // Load categories if available.
+                if (data.categories) {
+                    categories = data.categories;
                 }
 
                 // Sort tests by date descending (most recent first).

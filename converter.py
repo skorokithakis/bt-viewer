@@ -188,6 +188,7 @@ def convert_data_to_json(data: list, output_path: str = "data.json") -> None:
     The data must have columns for Date and Lab, followed by biomarker columns.
     """
     tests = []
+    categories = {}
 
     if not data:
         raise ValueError("No data to convert")
@@ -224,9 +225,23 @@ def convert_data_to_json(data: list, output_path: str = "data.json") -> None:
         print("Error: No valid biomarker columns found in data", file=sys.stderr)
         sys.exit(1)
 
+    # Find where categories section starts.
+    categories_start_index = None
+    for idx, row in enumerate(data):
+        # Check all cells in the row for "Categories".
+        for value in row.values():
+            if value and "Categories" in str(value):
+                categories_start_index = idx + 1  # Start reading from next row.
+                break
+        if categories_start_index is not None:
+            break
+
+    # Process test data rows (stop at categories section if found).
+    test_data = data[:categories_start_index - 1] if categories_start_index else data
+
     # Process each row.
     for row_num, row in enumerate(
-        data, start=2
+        test_data, start=2
     ):  # Start at 2 because row 1 is headers.
         # Skip rows with empty date.
         if not row.get(date_col, "").strip():
@@ -273,8 +288,26 @@ def convert_data_to_json(data: list, output_path: str = "data.json") -> None:
                 }
             )
 
+    # Process categories section if found.
+    if categories_start_index is not None and categories_start_index < len(data):
+        for row in data[categories_start_index:]:
+            # Get all values from the row.
+            row_values = list(row.values())
+
+            # Filter out empty values.
+            non_empty_values = [v.strip() for v in row_values if v and v.strip()]
+
+            if len(non_empty_values) >= 2:  # Need at least category name and one biomarker.
+                category_name = non_empty_values[0]
+                biomarker_names = non_empty_values[1:]
+                categories[category_name] = biomarker_names
+
     # Create the output JSON structure
     output_data = {"schemaVersion": 1, "tests": tests}
+
+    # Add categories if any were found.
+    if categories:
+        output_data["categories"] = categories
 
     # Write to output file
     with open(output_path, "w", encoding="utf-8") as jsonfile:
