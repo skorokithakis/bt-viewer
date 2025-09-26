@@ -1,5 +1,5 @@
-*.json
+*.ods
 *.csv
+*.json
 .playwright-mcp/
 CLAUDE.md
-*.ods
