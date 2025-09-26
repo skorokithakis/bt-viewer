@@ -824,6 +824,19 @@
                         arrowHtml = `<span class="arrow arrow-${arrow.color}">${getArrowSymbol(arrow.direction)}</span>`;
                     }
 
+                    // Format the range text.
+                    let rangeText = '';
+                    if (item.current.low !== null && item.current.high !== null) {
+                        rangeText = `${item.current.low} - ${item.current.high}`;
+                    } else if (item.current.low !== null) {
+                        rangeText = `≥ ${item.current.low}`;
+                    } else if (item.current.high !== null) {
+                        rangeText = `≤ ${item.current.high}`;
+                    }
+                    if (rangeText && item.current.unit) {
+                        rangeText += ' ' + item.current.unit;
+                    }
+
                     html += `
                         <div class="biomarker-card" onclick="showLongitudinalView('${item.name}')">
                             <div class="biomarker-name">${item.name}</div>
@@ -833,7 +846,10 @@
                                 </span>
                                 ${arrowHtml}
                             </div>
-                            ${previousHtml}
+                            <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+                                <div>${previousHtml}</div>
+                                <div style="font-size: 0.75rem; color: #718096; text-align: right;">${rangeText}</div>
+                            </div>
                         </div>
                     `;
                 }
