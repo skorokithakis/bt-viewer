@@ -237,7 +237,7 @@ def convert_data_to_json(data: list, output_path: str = "data.json") -> None:
             break
 
     # Process test data rows (stop at categories section if found).
-    test_data = data[:categories_start_index - 1] if categories_start_index else data
+    test_data = data[: categories_start_index - 1] if categories_start_index else data
 
     # Process each row.
     for row_num, row in enumerate(
@@ -297,7 +297,9 @@ def convert_data_to_json(data: list, output_path: str = "data.json") -> None:
             # Filter out empty values.
             non_empty_values = [v.strip() for v in row_values if v and v.strip()]
 
-            if len(non_empty_values) >= 2:  # Need at least category name and one biomarker.
+            if (
+                len(non_empty_values) >= 2
+            ):  # Need at least category name and one biomarker.
                 category_name = non_empty_values[0]
                 biomarker_names = non_empty_values[1:]
                 categories[category_name] = biomarker_names

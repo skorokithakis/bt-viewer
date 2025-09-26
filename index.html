@@ -351,6 +351,16 @@
             background: #f7fafc;
         }
 
+        .category-row {
+            background-color: #f7fafc;
+            font-weight: 600;
+        }
+
+        .category-row td {
+            padding: 0.75rem;
+            color: #4a5568;
+        }
+
         .status-in-range {
             color: #48bb78;
         }
@@ -925,8 +935,8 @@
 
                 // Add category header row.
                 html += `
-                    <tr style="background-color: #f7fafc; font-weight: 600;">
-                        <td colspan="3" style="padding: 0.75rem; color: #4a5568;">${categoryName}</td>
+                    <tr class="category-row">
+                        <td colspan="3">${categoryName}</td>
                     </tr>
                 `;
 
