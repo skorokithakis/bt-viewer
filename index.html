@@ -912,9 +912,7 @@
                             <tr>
                                 <th>Biomarker</th>
                                 <th>Value</th>
-                                <th>Unit</th>
                                 <th>Reference range</th>
-                                <th>Status</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -928,13 +926,14 @@
                 // Add category header row.
                 html += `
                     <tr style="background-color: #f7fafc; font-weight: 600;">
-                        <td colspan="5" style="padding: 0.75rem; color: #4a5568;">${categoryName}</td>
+                        <td colspan="3" style="padding: 0.75rem; color: #4a5568;">${categoryName}</td>
                     </tr>
                 `;
 
                 // Add biomarkers for this category.
                 for (const biomarker of biomarkers) {
-                    const status = getStatus(biomarker.value, biomarker.low, biomarker.high);
+                    const inRange = checkInRange(biomarker.value, biomarker.low, biomarker.high);
+                    const valueStyle = inRange === false ? 'color: #e53e3e; font-weight: bold;' : '';
 
                     let rangeText = '';
                     if (biomarker.low !== null && biomarker.high !== null) {
@@ -948,10 +947,8 @@
                     html += `
                         <tr onclick="showLongitudinalView('${biomarker.name}')">
                             <td>${biomarker.name}</td>
-                            <td>${biomarker.value}</td>
-                            <td>${biomarker.unit || ''}</td>
+                            <td style="${valueStyle}">${biomarker.value}${biomarker.unit ? ' ' + biomarker.unit : ''}</td>
                             <td>${rangeText}</td>
-                            <td class="${status.class}">${status.text}</td>
                         </tr>
                     `;
                 }
