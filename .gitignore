@@ -1,5 +1,6 @@
 *.ods
 *.csv
 *.json
+*.pdf
 .playwright-mcp/
 CLAUDE.md

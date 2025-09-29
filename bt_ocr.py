@@ -6,8 +6,6 @@
 #     "anthropic",
 # ]
 # ///
-# XXX: This doesn't quite work: The OCRed results aren't put in the right place in the
-# ODS file.
 import argparse
 import base64
 import json
@@ -97,7 +95,7 @@ def ocr_images_with_claude(
     if lab_names:
         lab_names_section = textwrap.dedent(
             f"""
-            
+
             LABORATORY NAMES: I have an existing list of lab names in my spreadsheet. If you can identify the lab name from the images, please choose from this list if possible:
 
             {json.dumps(list(lab_names), indent=2)}
@@ -124,7 +122,7 @@ def ocr_images_with_claude(
             - If it matches one of the above names, use the EXACT spelling and capitalization from the list
             - Extract the value (as a number, not string), unit, and reference ranges
             - Return biomarkers in the SAME ORDER as the list above (only include biomarkers found in the images)
-            
+
             If you find biomarkers that are NOT in the above list:
             - Add them at the END of the results
             - Follow the naming style/pattern of the existing biomarker names
@@ -162,19 +160,14 @@ def ocr_images_with_claude(
     ).strip()
 
     # Prepare image content for the API
-    messages = [
-        {
-            "role": "user",
-            "content": [
-                {"type": "text", "text": prompt},
-            ],
-        }
+    content: list[dict[str, Any]] = [
+        {"type": "text", "text": prompt},
     ]
 
     # Add all images to the message
     for image_path in image_paths:
         encoded_image = encode_image(image_path)
-        messages[0]["content"].append(
+        content.append(
             {
                 "type": "image",
                 "source": {
@@ -184,6 +177,13 @@ def ocr_images_with_claude(
                 },
             }
         )
+
+    messages = [
+        {
+            "role": "user",
+            "content": content,
+        }
+    ]
 
     # Make the API call
     response = client.messages.create(
@@ -325,6 +325,156 @@ def extract_lab_names_from_open_document(
     return set(lab_names[1:])
 
 
+def format_ocr_results_for_display(
+    ocr_result: dict[str, Any], existing_biomarkers: list[str]
+) -> str:
+    """Format OCR results in a nice human-readable table.
+
+    Args:
+        ocr_result: Dictionary containing OCR results with lab_name, date, and biomarkers
+        existing_biomarkers: List of existing biomarker column names from the spreadsheet
+
+    Returns:
+        Formatted string with table showing all recognized information
+    """
+    lines = []
+    lines.append("=" * 80)
+    lines.append("OCR RESULTS")
+    lines.append("=" * 80)
+    lines.append("")
+    lines.append(f"Lab name: {ocr_result.get('lab_name', 'N/A')}")
+    lines.append(f"Date: {ocr_result.get('date', 'N/A')}")
+    lines.append("")
+
+    # Create normalized lookup for matching
+    normalized_existing = {name.strip().lower(): name for name in existing_biomarkers}
+
+    # Categorize biomarkers as matched or new
+    matched_biomarkers = []
+    new_biomarkers = []
+
+    for biomarker in ocr_result.get("biomarkers", []):
+        name = biomarker.get("name") or ""
+        if not name:
+            continue  # Skip biomarkers without names.
+
+        normalized_name = name.strip().lower()
+
+        if normalized_name in normalized_existing:
+            matched_name = normalized_existing[normalized_name]
+            matched_biomarkers.append((matched_name, biomarker, True))
+        else:
+            new_biomarkers.append((name, biomarker, False))
+
+    # Print matched biomarkers first
+    if matched_biomarkers:
+        lines.append("MATCHED TO EXISTING COLUMNS:")
+        lines.append("-" * 80)
+        lines.append(
+            f"{'Biomarker':<30} {'Value':>10} {'Unit':<10} {'Reference Range':<20}"
+        )
+        lines.append("-" * 80)
+
+        for spreadsheet_name, biomarker, _ in matched_biomarkers:
+            value = biomarker.get("value")
+            unit = biomarker.get("unit") or ""
+            range_lower = biomarker.get("range_lower")
+            range_upper = biomarker.get("range_upper")
+
+            # Format value for display.
+            value_str = str(value) if value is not None else "N/A"
+
+            # Format reference range.
+            if range_lower is not None and range_upper is not None:
+                ref_range = f"{range_lower}-{range_upper}"
+            elif range_lower is not None:
+                ref_range = f"≥{range_lower}"
+            elif range_upper is not None:
+                ref_range = f"≤{range_upper}"
+            else:
+                ref_range = ""
+
+            lines.append(
+                f"{spreadsheet_name:<30} {value_str:>10} {unit:<10} {ref_range:<20}"
+            )
+        lines.append("")
+
+    # Print new biomarkers
+    if new_biomarkers:
+        lines.append("NEW BIOMARKERS (will be added as new columns):")
+        lines.append("-" * 80)
+        lines.append(
+            f"{'Biomarker':<30} {'Value':>10} {'Unit':<10} {'Reference Range':<20}"
+        )
+        lines.append("-" * 80)
+
+        for name, biomarker, _ in new_biomarkers:
+            value = biomarker.get("value")
+            unit = biomarker.get("unit") or ""
+            range_lower = biomarker.get("range_lower")
+            range_upper = biomarker.get("range_upper")
+
+            # Format value for display.
+            value_str = str(value) if value is not None else "N/A"
+
+            # Format reference range.
+            if range_lower is not None and range_upper is not None:
+                ref_range = f"{range_lower}-{range_upper}"
+            elif range_lower is not None:
+                ref_range = f"≥{range_lower}"
+            elif range_upper is not None:
+                ref_range = f"≤{range_upper}"
+            else:
+                ref_range = ""
+
+            lines.append(f"{name:<30} {value_str:>10} {unit:<10} {ref_range:<20}")
+        lines.append("")
+
+    # Summary
+    lines.append("=" * 80)
+    lines.append(
+        f"Total biomarkers: {len(matched_biomarkers) + len(new_biomarkers)} "
+        f"(matched: {len(matched_biomarkers)}, new: {len(new_biomarkers)})"
+    )
+    lines.append("=" * 80)
+
+    return "\n".join(lines)
+
+
+def format_biomarker_column_name(biomarker: dict[str, Any]) -> str:
+    """Format a biomarker object into a column name following the convention.
+
+    Format: {name} {{unit}} [{range_low}-{range_upper}]
+
+    Args:
+        biomarker: Dictionary containing name, unit, range_lower, range_upper
+
+    Returns:
+        Formatted column name string
+    """
+    name = biomarker.get("name", "")
+    unit = biomarker.get("unit", "")
+    range_lower = biomarker.get("range_lower")
+    range_upper = biomarker.get("range_upper")
+
+    # Start with the name
+    parts = [name]
+
+    # Add unit in curly braces if present
+    if unit:
+        parts.append(f"{{{unit}}}")
+
+    # Add reference range in square brackets if present
+    if range_lower is not None and range_upper is not None:
+        parts.append(f"[{range_lower}-{range_upper}]")
+    elif range_upper is not None:
+        parts.append(f"[-{range_upper}]")
+    elif range_lower is not None:
+        parts.append(f"[{range_lower}-]")
+
+    return " ".join(parts)
+
+
 def write_results_to_ods(
     odf_path: pathlib.Path, ocr_result: dict[str, Any], existing_biomarkers: list[str]
 ) -> None:
@@ -356,52 +506,86 @@ def write_results_to_ods(
     if len(rows) < 1:
         raise ValueError("ODS file must have at least a header row")
 
-    # Parse the biomarkers from the OCR result
-    # Keep track of biomarker values and maintain order
+    # Parse the biomarkers from the OCR result.
+    # Store full biomarker objects (not just values) to preserve units and reference ranges.
     biomarkers_dict = {}
     biomarkers_order = []
 
-    # Create a normalized lookup for existing biomarkers (strip whitespace, lowercase)
+    # Create a normalized lookup for existing biomarkers (strip whitespace, lowercase).
     normalized_existing = {name.strip().lower(): name for name in existing_biomarkers}
 
     for biomarker in ocr_result.get("biomarkers", []):
-        name = biomarker.get("name")
-        value = biomarker.get("value")
+        name = biomarker.get("name") or ""
+        if not name:
+            continue  # Skip biomarkers without names.
 
-        # Try to match against existing biomarker names (normalized)
+        # Try to match against existing biomarker names (normalized).
         normalized_name = name.strip().lower()
         if normalized_name in normalized_existing:
-            # Use the exact name from the spreadsheet
+            # Use the exact name from the spreadsheet.
             matched_name = normalized_existing[normalized_name]
-            biomarkers_dict[matched_name] = value
+            biomarkers_dict[matched_name] = biomarker
         else:
-            # New biomarker not in existing list
-            biomarkers_dict[name] = value
-            biomarkers_order.append(name)
+            # New biomarker not in existing list - format according to convention.
+            formatted_name = format_biomarker_column_name(biomarker)
+            biomarkers_dict[formatted_name] = biomarker
+            biomarkers_order.append(formatted_name)
 
     # Determine if there are new biomarkers (maintain order from OCR result)
     new_biomarkers = [
         name for name in biomarkers_order if name not in existing_biomarkers
     ]
 
-    # Debug output
+    # Detailed column mapping output.
+    print("\n" + "=" * 80, file=sys.stderr)
+    print("COLUMN MAPPING (writing to ODS)", file=sys.stderr)
+    print("=" * 80, file=sys.stderr)
     print(f"Found {len(biomarkers_dict)} biomarkers from OCR", file=sys.stderr)
     print(
         f"Matched to existing columns: {len(biomarkers_dict) - len(new_biomarkers)}",
         file=sys.stderr,
     )
     print(f"New biomarkers to add: {len(new_biomarkers)}", file=sys.stderr)
-    if new_biomarkers:
-        print(f"New biomarker names: {new_biomarkers}", file=sys.stderr)
 
-    # Update header row if there are new biomarkers
+    if new_biomarkers:
+        print("\nNew biomarker names that will be added as columns:", file=sys.stderr)
+        for nb in new_biomarkers:
+            print(f"  - {nb}", file=sys.stderr)
+
+    # Show the final column order.
+    print("\nFinal column order (after Date and Lab name):", file=sys.stderr)
+    all_biomarkers_preview = existing_biomarkers + new_biomarkers
+    for idx, col_name in enumerate(all_biomarkers_preview, start=1):
+        biomarker_obj = biomarkers_dict.get(col_name)
+        if biomarker_obj:
+            value = biomarker_obj.get("value", "N/A")
+            print(f"  {idx:3}. {col_name:<30} = {value}", file=sys.stderr)
+        else:
+            print(f"  {idx:3}. {col_name:<30} = (empty)", file=sys.stderr)
+    print("=" * 80 + "\n", file=sys.stderr)
+
+    # Update header row if there are new biomarkers.
     if new_biomarkers:
         header_row = rows[0]
+
+        # Find the last cell with repeated columns (empty columns at the end).
+        header_cells = list(header_row.childNodes)
+        insert_before = None
+        if header_cells:
+            last_cell = header_cells[-1]
+            # If the last cell has numbercolumnsrepeated, insert new cells before it.
+            if last_cell.getAttribute("numbercolumnsrepeated"):
+                insert_before = last_cell
+
+        # Add the new biomarker columns.
         for new_biomarker in new_biomarkers:
             cell = TableCell()
             p = text.P(text=new_biomarker)
             cell.addElement(p)
-            header_row.addElement(cell)
+            if insert_before:
+                header_row.insertBefore(cell, insert_before)
+            else:
+                header_row.addElement(cell)
 
     # Create the new data row
     new_row = TableRow()
@@ -418,19 +602,23 @@ def write_results_to_ods(
     lab_cell.addElement(lab_p)
     new_row.addElement(lab_cell)
 
-    # Add biomarker columns (existing + new)
+    # Add biomarker columns (existing + new).
     all_biomarkers = existing_biomarkers + new_biomarkers
     for biomarker_name in all_biomarkers:
         cell = TableCell()
-        cell_value = biomarkers_dict.get(biomarker_name)
+        biomarker_obj = biomarkers_dict.get(biomarker_name)
 
-        if cell_value is not None and cell_value != "":
-            # Set as numeric value to avoid the leading single quote
-            cell.setAttribute("valuetype", "float")
-            cell.setAttribute("value", str(cell_value))
-            p = text.P(text=str(cell_value))
-            cell.addElement(p)
-        # Leave cell empty if no value
+        if biomarker_obj is not None:
+            # Extract the value from the biomarker object.
+            cell_value = biomarker_obj.get("value")
+
+            if cell_value is not None and cell_value != "":
+                # Set as numeric value to avoid the leading single quote.
+                cell.setAttribute("valuetype", "float")
+                cell.setAttribute("value", str(cell_value))
+                p = text.P(text=str(cell_value))
+                cell.addElement(p)
+        # Leave cell empty if no biomarker or value.
 
         new_row.addElement(cell)
 
@@ -512,7 +700,11 @@ def main() -> None:
                 images, biomarker_names, lab_names, args.model
             )
 
-            # Write results back to the ODS file
+            # Display OCR results in a nice format for verification.
+            print("\n" + format_ocr_results_for_display(result, biomarker_names))
+            print()
+
+            # Write results back to the ODS file.
             write_results_to_ods(args.ods, result, biomarker_names)
 
             # Output the results (if requested)
