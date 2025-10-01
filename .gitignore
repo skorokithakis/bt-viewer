@@ -4,3 +4,4 @@
 *.pdf
 .playwright-mcp/
 CLAUDE.md
+.DS_Store
