@@ -1227,17 +1227,28 @@
                 chartInstance.destroy();
             }
 
+            // When there's only one data point, make it more visible.
+            const singleDataPoint = dataPoints.length === 1;
+
             // Calculate default zoom to show last year of data.
             const oldestDate = new Date(dataPoints[0].x);
             const mostRecentDate = new Date(dataPoints[dataPoints.length - 1].x);
             const oneYearAgo = new Date(mostRecentDate);
             oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
 
-            // Calculate 10% margin on each side for zoom limits.
-            const timeSpan = mostRecentDate - oldestDate;
-            const margin = timeSpan * 0.03;
-            const minZoomLimit = oldestDate.getTime() - margin;
-            const maxZoomLimit = mostRecentDate.getTime() + margin;
+            // Calculate margin for zoom limits. For single data point, use fixed 3-month window.
+            let minZoomLimit, maxZoomLimit;
+            if (singleDataPoint) {
+                const singleDate = new Date(dataPoints[0].x);
+                const threeMonthsMs = 90 * 24 * 60 * 60 * 1000;
+                minZoomLimit = singleDate.getTime() - threeMonthsMs;
+                maxZoomLimit = singleDate.getTime() + threeMonthsMs;
+            } else {
+                const timeSpan = mostRecentDate - oldestDate;
+                const margin = timeSpan * 0.03;
+                minZoomLimit = oldestDate.getTime() - margin;
+                maxZoomLimit = mostRecentDate.getTime() + margin;
+            }
 
             // Track whether user is dragging to distinguish from clicking.
             let isDragging = false;
@@ -1247,25 +1258,34 @@
             const chartLineColor = rootStyles.getPropertyValue('--chart-line').trim();
             const chartLineBg = rootStyles.getPropertyValue('--chart-line-bg').trim();
             const chartHoverColor = rootStyles.getPropertyValue('--chart-hover').trim();
-
             const datasets = [{
                 label: currentBiomarker,
                 data: dataPoints,
                 borderColor: chartLineColor,
-                backgroundColor: chartLineBg,
+                backgroundColor: singleDataPoint ? chartLineColor : chartLineBg,
                 borderWidth: 2,
-                pointRadius: 4,
-                pointHoverRadius: 6,
+                pointRadius: singleDataPoint ? 12 : 4,
+                pointHoverRadius: singleDataPoint ? 14 : 6,
+                pointBackgroundColor: chartLineColor,
+                pointBorderColor: chartLineColor,
                 pointHoverBackgroundColor: chartHoverColor,
                 pointHoverBorderColor: chartHoverColor,
-                tension: 0.1
+                tension: 0.1,
+                showLine: !singleDataPoint
             }];
 
             // Calculate y-axis bounds for proper display based on data only.
             const minY = Math.min(...dataPoints.map(p => p.y));
             const maxY = Math.max(...dataPoints.map(p => p.y));
             const range = maxY - minY;
-            const padding = range * 0.2;
+
+            // For single data points, range is 0, so use 20% of the value itself as padding.
+            let padding;
+            if (singleDataPoint || range === 0) {
+                padding = Math.abs(minY) * 0.2 || 1;
+            } else {
+                padding = range * 0.2;
+            }
 
             // Chart bounds should be based on data range only, with 20% padding.
             const chartYMin = minY - padding;
@@ -1337,8 +1357,8 @@
                     scales: {
                         x: {
                             type: 'time',
-                            min: oneYearAgo.toISOString().split('T')[0],
-                            max: mostRecentDate.toISOString().split('T')[0],
+                            min: singleDataPoint ? new Date(minZoomLimit).toISOString().split('T')[0] : oneYearAgo.toISOString().split('T')[0],
+                            max: singleDataPoint ? new Date(maxZoomLimit).toISOString().split('T')[0] : mostRecentDate.toISOString().split('T')[0],
                             time: {
                                 unit: 'month',
                                 displayFormats: {
