@@ -573,6 +573,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
 </head>
 <body>
     <div id="loading" class="loading">Loading blood test data...</div>
@@ -1226,6 +1227,21 @@
                 chartInstance.destroy();
             }
 
+            // Calculate default zoom to show last year of data.
+            const oldestDate = new Date(dataPoints[0].x);
+            const mostRecentDate = new Date(dataPoints[dataPoints.length - 1].x);
+            const oneYearAgo = new Date(mostRecentDate);
+            oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
+            // Calculate 10% margin on each side for zoom limits.
+            const timeSpan = mostRecentDate - oldestDate;
+            const margin = timeSpan * 0.03;
+            const minZoomLimit = oldestDate.getTime() - margin;
+            const maxZoomLimit = mostRecentDate.getTime() + margin;
+
+            // Track whether user is dragging to distinguish from clicking.
+            let isDragging = false;
+
             // Get colors from CSS variables for dark mode support.
             const rootStyles = getComputedStyle(document.body);
             const chartLineColor = rootStyles.getPropertyValue('--chart-line').trim();
@@ -1305,7 +1321,7 @@
                         ctx.canvas.style.cursor = elements.length > 0 ? 'pointer' : 'default';
                     },
                     onClick: function(event, elements) {
-                        if (elements.length > 0) {
+                        if (elements.length > 0 && !isDragging) {
                             const element = elements[0];
                             const dataPoint = dataPoints[element.index];
                             const testDate = dataPoint.x;
@@ -1316,10 +1332,13 @@
                                 selectTest(testIndex);
                             }
                         }
+                        isDragging = false;
                     },
                     scales: {
                         x: {
                             type: 'time',
+                            min: oneYearAgo.toISOString().split('T')[0],
+                            max: mostRecentDate.toISOString().split('T')[0],
                             time: {
                                 unit: 'month',
                                 displayFormats: {
@@ -1354,6 +1373,34 @@
                         },
                         legend: {
                             display: false
+                        },
+                        zoom: {
+                            pan: {
+                                enabled: true,
+                                mode: 'x',
+                                onPanStart: function() {
+                                    isDragging = true;
+                                },
+                                onPanComplete: function() {
+                                    setTimeout(() => { isDragging = false; }, 100);
+                                }
+                            },
+                            zoom: {
+                                wheel: {
+                                    enabled: true,
+                                    speed: 0.03
+                                },
+                                pinch: {
+                                    enabled: true
+                                },
+                                mode: 'x'
+                            },
+                            limits: {
+                                x: {
+                                    min: minZoomLimit,
+                                    max: maxZoomLimit
+                                }
+                            }
                         }
                     }
                 }
