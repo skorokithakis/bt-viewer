@@ -575,6 +575,7 @@
             }
         }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
@@ -1226,6 +1227,7 @@
 
             // Create the chart.
             const ctx = document.getElementById('biomarker-chart').getContext('2d');
+            const canvas = ctx.canvas;
 
             // Destroy previous chart instance if it exists.
             if (chartInstance) {
@@ -1255,8 +1257,8 @@
                 maxZoomLimit = mostRecentDate.getTime() + margin;
             }
 
-            // Track whether user is dragging to distinguish from clicking.
-            let isDragging = false;
+            // Track mouse position for drag detection.
+            let mouseDownPosition = null;
 
             // Get colors from CSS variables for dark mode support.
             const rootStyles = getComputedStyle(document.body);
@@ -1269,7 +1271,7 @@
                 borderColor: chartLineColor,
                 backgroundColor: singleDataPoint ? chartLineColor : chartLineBg,
                 borderWidth: 2,
-                pointRadius: singleDataPoint ? 12 : 4,
+                pointRadius: 4,
                 pointHoverRadius: singleDataPoint ? 14 : 6,
                 pointBackgroundColor: chartLineColor,
                 pointBorderColor: chartLineColor,
@@ -1346,18 +1348,7 @@
                         ctx.canvas.style.cursor = elements.length > 0 ? 'pointer' : 'default';
                     },
                     onClick: function(event, elements) {
-                        if (elements.length > 0 && !isDragging) {
-                            const element = elements[0];
-                            const dataPoint = dataPoints[element.index];
-                            const testDate = dataPoint.x;
-
-                            // Find the test index by date.
-                            const testIndex = testsData.findIndex(test => test.date === testDate);
-                            if (testIndex !== -1) {
-                                selectTest(testIndex);
-                            }
-                        }
-                        isDragging = false;
+                        // Navigation happens on mouseup, not click.
                     },
                     scales: {
                         x: {
@@ -1403,12 +1394,7 @@
                             pan: {
                                 enabled: true,
                                 mode: 'x',
-                                onPanStart: function() {
-                                    isDragging = true;
-                                },
-                                onPanComplete: function() {
-                                    setTimeout(() => { isDragging = false; }, 100);
-                                }
+                                modifierKey: null
                             },
                             zoom: {
                                 wheel: {
@@ -1429,6 +1415,60 @@
                         }
                     }
                 }
+            });
+
+            // Track mousedown position for drag detection.
+            canvas.addEventListener('mousedown', function(event) {
+                mouseDownPosition = { x: event.clientX, y: event.clientY };
+            }, { passive: true });
+
+            // Handle click navigation after pan/zoom is done.
+            canvas.addEventListener('click', function(event) {
+                // Check if this was a drag by looking at mouse movement.
+                if (mouseDownPosition) {
+                    const deltaX = Math.abs(event.clientX - mouseDownPosition.x);
+                    const deltaY = Math.abs(event.clientY - mouseDownPosition.y);
+                    const wasDragging = deltaX > 5 || deltaY > 5;
+
+                    if (!wasDragging) {
+                        // Find nearest point within 50px radius.
+                        const nearbyElements = chartInstance.getElementsAtEventForMode(
+                            event,
+                            'nearest',
+                            { intersect: false },
+                            false
+                        );
+
+                        if (nearbyElements.length > 0) {
+                            const element = nearbyElements[0];
+                            const dataPoint = dataPoints[element.index];
+
+                            // Check if the point is within 50px radius.
+                            const meta = chartInstance.getDatasetMeta(0);
+                            const point = meta.data[element.index];
+                            const rect = canvas.getBoundingClientRect();
+                            const mouseX = event.clientX - rect.left;
+                            const mouseY = event.clientY - rect.top;
+                            const distance = Math.sqrt(
+                                Math.pow(point.x - mouseX, 2) + Math.pow(point.y - mouseY, 2)
+                            );
+
+                            if (distance <= 50) {
+                                const testDate = dataPoint.x;
+                                const testIndex = testsData.findIndex(test => test.date === testDate);
+                                if (testIndex !== -1) {
+                                    selectTest(testIndex);
+                                }
+                            }
+                        }
+                    }
+                }
+                mouseDownPosition = null;
+            });
+
+            // Reset tracking if mouse leaves canvas.
+            canvas.addEventListener('mouseleave', function() {
+                mouseDownPosition = null;
             });
         }
 
