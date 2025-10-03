@@ -87,7 +87,7 @@ def read_ods_file(file_path: str) -> list:
             paragraphs = cell.getElementsByType(text.P)
             if paragraphs:
                 # Join all text content from all paragraphs.
-                cell_value = "".join(teletype.extractText(p) for p in paragraphs)
+                cell_value = "\n".join(teletype.extractText(p) for p in paragraphs)
 
             # Add value(s) to row data.
             for _ in range(repeat_count):
@@ -199,6 +199,7 @@ def convert_data_to_json(data: list, output_path: str = "data.json") -> None:
     # Find Date and Lab columns (case-insensitive).
     date_col = None
     lab_col = None
+    assessment_col = None
     biomarker_columns = {}  # Map column name to parsed info.
 
     for field in headers:
@@ -207,6 +208,8 @@ def convert_data_to_json(data: list, output_path: str = "data.json") -> None:
             date_col = field
         elif "lab" in field_lower:
             lab_col = field
+        elif "assessment" in field_lower:
+            assessment_col = field
         else:
             # Parse biomarker header.
             parsed = parse_biomarker_header(field)
@@ -280,13 +283,17 @@ def convert_data_to_json(data: list, output_path: str = "data.json") -> None:
             )
 
         if biomarkers:  # Only add test if it has biomarkers.
-            tests.append(
-                {
-                    "date": date_iso,
-                    "labName": row[lab_col].strip(),
-                    "biomarkers": biomarkers,
-                }
-            )
+            test_data = {
+                "date": date_iso,
+                "labName": row[lab_col].strip(),
+                "biomarkers": biomarkers,
+            }
+
+            # Add assessment if available.
+            if assessment_col and row.get(assessment_col, "").strip():
+                test_data["assessment"] = row[assessment_col].strip()
+
+            tests.append(test_data)
 
     # Process categories section if found.
     if categories_start_index is not None and categories_start_index < len(data):

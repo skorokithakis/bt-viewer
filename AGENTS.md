@@ -3,3 +3,6 @@
   code doesn't match docs/PRD.md, ask which is correct and update the one that is wrong.
 - There is a server running on http://localhost:8000 and you can use the Playwright MCP
   to test your changes without asking.
+- For the purposes of this repo, an "important biomarker" for a test is a biomarkers
+  which either is out of range in this test, or has been out of range in any of the
+  previous three tests.

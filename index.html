@@ -417,6 +417,63 @@
             text-align: center;
         }
 
+        .assessment-box {
+            padding: 1.5rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-tertiary);
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+            line-height: 1.6;
+        }
+
+        .assessment-box h3 {
+            margin-top: 0;
+            margin-bottom: 0.75rem;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .assessment-box p {
+            margin: 0.5rem 0;
+            color: var(--text-primary);
+        }
+
+        .assessment-box p:last-child {
+            margin-bottom: 0;
+        }
+
+        .assessment-box a {
+            color: var(--color-info);
+            text-decoration: none;
+        }
+
+        .assessment-box a:hover {
+            text-decoration: underline;
+        }
+
+        .assessment-box ul, .assessment-box ol {
+            margin: 0.5rem 0;
+            padding-left: 1.5rem;
+        }
+
+        .assessment-box li {
+            margin: 0.25rem 0;
+        }
+
+        .assessment-box code {
+            background: var(--bg-primary);
+            padding: 0.125rem 0.25rem;
+            border-radius: 0.25rem;
+            font-family: monospace;
+            font-size: 0.875em;
+        }
+
+        .assessment-box strong {
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
         .results-table {
             margin-top: 2rem;
         }
@@ -580,6 +637,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
 </head>
 <body>
     <div id="loading" class="loading">Loading blood test data...</div>
@@ -827,22 +885,14 @@
                 else if (distCurr > distPrev) color = 'red';
                 else color = 'green';  // Equal distance means not worse.
             } else if (low !== null && high === null) {
-                // Only lower bound exists.
-                // Improvement means getting closer to or above the lower bound.
-                const distPrev = Math.abs(previous - low);
-                const distCurr = Math.abs(current - low);
-
-                if (distCurr < distPrev) color = 'green';
-                else if (distCurr > distPrev) color = 'red';
+                // Only lower bound exists - ideal is infinity (higher is better).
+                if (current > previous) color = 'green';
+                else if (current < previous) color = 'red';
                 else color = 'green';
             } else if (low === null && high !== null) {
-                // Only upper bound exists.
-                // Improvement means getting closer to or below the upper bound.
-                const distPrev = Math.abs(previous - high);
-                const distCurr = Math.abs(current - high);
-
-                if (distCurr < distPrev) color = 'green';
-                else if (distCurr > distPrev) color = 'red';
+                // Only upper bound exists - ideal is 0 (lower is better).
+                if (current < previous) color = 'green';
+                else if (current > previous) color = 'red';
                 else color = 'green';
             } else {
                 // No bounds - neutral color.
@@ -1065,6 +1115,17 @@
                 }
 
                 html += '</div>';
+            }
+
+            // Add assessment if available.
+            if (currentTest.assessment) {
+                const assessmentHtml = marked.parse(currentTest.assessment);
+                html += `
+                    <h2>Assessment</h2>
+                    <div class="assessment-box">
+                        ${assessmentHtml}
+                    </div>
+                `;
             }
 
             html += `
