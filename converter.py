@@ -283,7 +283,7 @@ def convert_data_to_json(data: list, output_path: str = "data.json") -> None:
             )
 
         if biomarkers:  # Only add test if it has biomarkers.
-            test_data = {
+            test_item = {
                 "date": date_iso,
                 "labName": row[lab_col].strip(),
                 "biomarkers": biomarkers,
@@ -291,9 +291,9 @@ def convert_data_to_json(data: list, output_path: str = "data.json") -> None:
 
             # Add assessment if available.
             if assessment_col and row.get(assessment_col, "").strip():
-                test_data["assessment"] = row[assessment_col].strip()
+                test_item["assessment"] = row[assessment_col].strip()
 
-            tests.append(test_data)
+            tests.append(test_item)
 
     # Process categories section if found.
     if categories_start_index is not None and categories_start_index < len(data):

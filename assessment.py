@@ -103,7 +103,9 @@ def parse_biomarker_header(header: str) -> dict[str, Any]:
     return {"name": name, "unit": unit, "low": low, "high": high}
 
 
-def read_ods_tests(ods_path: pathlib.Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]], int]:
+def read_ods_tests(
+    ods_path: pathlib.Path,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], int]:
     """Read blood test data from ODS file.
 
     Returns:
@@ -219,9 +221,8 @@ def read_ods_tests(ods_path: pathlib.Path) -> tuple[list[dict[str, Any]], list[d
                 continue
 
             # Try to convert to float.
-            value = None
             try:
-                value = float(value_str)
+                value: float | str = float(value_str)
             except ValueError:
                 # Keep as string if conversion fails.
                 value = value_str
@@ -249,7 +250,9 @@ def read_ods_tests(ods_path: pathlib.Path) -> tuple[list[dict[str, Any]], list[d
     return tests, biomarker_info, assessment_column_index
 
 
-def is_value_out_of_range(value: float | str | None, low: float | None, high: float | None) -> bool:
+def is_value_out_of_range(
+    value: float | str | None, low: float | None, high: float | None
+) -> bool:
     """Check if a biomarker value is out of its reference range.
 
     Returns True if the value is outside the range [low, high].
@@ -412,8 +415,8 @@ def build_assessment_prompt(
         f"""
         You are a medical AI assistant analyzing blood test results. Please provide a concise assessment of the following blood test.
 
-        TEST DATE: {test['date']}
-        LABORATORY: {test['lab']}
+        TEST DATE: {test["date"]}
+        LABORATORY: {test["lab"]}
 
         BIOMARKERS (⚠️ indicates biomarkers that are currently out of range or were out of range in the previous 3 tests):
 
@@ -425,6 +428,7 @@ def build_assessment_prompt(
         2. Identifies any health concerns or areas that need attention
         3. Notes any medically relevant patterns or relationships between biomarkers
         4. Provides context about what these results might mean for overall health
+        5. Do not have a general title, but do have h3 in each section you may want to separate
 
         Focus on actionable insights and meaningful trends rather than simply restating reference ranges.
         Write in a clear, professional medical tone suitable for a patient reviewing their results.
@@ -515,16 +519,18 @@ def write_assessments_to_ods(
         # Find the assessment cell, handling repeated columns properly.
         current_column_index = 0
         target_cell = None
-        cell_list_index = None
         offset_in_repeat = 0
 
         for cell_idx, cell in enumerate(cells):
             repeat = int(cell.getAttribute("numbercolumnsrepeated") or "1")
 
             # Check if the assessment column is within this cell's range.
-            if current_column_index <= assessment_column_index < current_column_index + repeat:
+            if (
+                current_column_index
+                <= assessment_column_index
+                < current_column_index + repeat
+            ):
                 target_cell = cell
-                cell_list_index = cell_idx
                 offset_in_repeat = assessment_column_index - current_column_index
                 break
 
@@ -648,7 +654,9 @@ def main() -> None:
     )
 
     for idx, test in tests_to_process:
-        print(f"\nProcessing test {idx + 1}/{len(tests)}: {test['date']}", file=sys.stderr)
+        print(
+            f"\nProcessing test {idx + 1}/{len(tests)}: {test['date']}", file=sys.stderr
+        )
 
         # Identify important biomarkers.
         important_biomarkers = identify_important_biomarkers(tests, idx)
@@ -660,7 +668,9 @@ def main() -> None:
         # Generate assessment with Claude.
         try:
             if args.dry_run:
-                print("  Generating dummy assessment (dry-run mode)...", file=sys.stderr)
+                print(
+                    "  Generating dummy assessment (dry-run mode)...", file=sys.stderr
+                )
                 assessment = f"[DRY RUN] Assessment for test on {test['date']} with {len(important_biomarkers)} important biomarkers."
             else:
                 print("  Generating assessment with Claude...", file=sys.stderr)
@@ -668,7 +678,10 @@ def main() -> None:
                     test, important_biomarkers, tests, idx, args.model
                 )
             assessments_to_write[test["row_index"]] = assessment
-            print(f"  ✓ Assessment generated ({len(assessment)} characters)", file=sys.stderr)
+            print(
+                f"  ✓ Assessment generated ({len(assessment)} characters)",
+                file=sys.stderr,
+            )
         except Exception as exc:
             print(f"  ✗ Failed to generate assessment: {exc}", file=sys.stderr)
             continue
