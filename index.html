@@ -802,37 +802,50 @@
             return count;
         }
 
-        // Get the previous test relative to current index.
-        function getPreviousTest(index) {
-            return index < testsData.length - 1 ? testsData[index + 1] : null;
+        // Get all previous values for a specific biomarker, searching through all tests.
+        // Returns array of objects with { biomarker, testIndex }.
+        function getPreviousBiomarkerValues(biomarkerName, startIndex) {
+            const values = [];
+            for (let i = startIndex + 1; i < testsData.length; i++) {
+                const test = testsData[i];
+                const biomarker = test.biomarkers.find(b => b.name === biomarkerName);
+                if (biomarker) {
+                    values.push({ biomarker: biomarker, testIndex: i });
+                }
+            }
+            return values;
         }
 
-        // Find important biomarkers based on abnormalities in current + previous 4 tests.
+        // Find important biomarkers based on abnormalities in current + previous 4 values of each biomarker.
         function findImportantBiomarkers(currentIndex) {
             const important = [];
             const currentTest = testsData[currentIndex];
-
-            // Look at current + previous 4 tests.
-            const testsToCheck = [];
-            for (let i = currentIndex; i < Math.min(currentIndex + 5, testsData.length); i++) {
-                testsToCheck.push({ index: i, test: testsData[i] });
-            }
-
-            // Build a map of biomarkers and their most recent abnormal test.
             const biomarkerAbnormalities = new Map();
 
-            for (const { index, test } of testsToCheck) {
-                for (const biomarker of test.biomarkers) {
+            // For each biomarker in the current test, check its last 5 values (including current).
+            for (const currentBiomarker of currentTest.biomarkers) {
+                const previousValues = getPreviousBiomarkerValues(currentBiomarker.name, currentIndex);
+                const valuesToCheck = [
+                    { biomarker: currentBiomarker, testIndex: currentIndex },
+                    ...previousValues.slice(0, 4)
+                ];
+
+                // Check if any of these values are abnormal.
+                let mostRecentAbnormalIndex = null;
+
+                for (const { biomarker, testIndex } of valuesToCheck) {
                     const inRange = checkInRange(biomarker.value, biomarker.low, biomarker.high);
                     if (inRange === false) {
-                        if (!biomarkerAbnormalities.has(biomarker.name)) {
-                            biomarkerAbnormalities.set(biomarker.name, {
-                                name: biomarker.name,
-                                mostRecentAbnormalIndex: index,
-                                mostRecentAbnormalDate: test.date
-                            });
-                        }
+                        mostRecentAbnormalIndex = testIndex;
+                        break;
                     }
+                }
+
+                if (mostRecentAbnormalIndex !== null) {
+                    biomarkerAbnormalities.set(currentBiomarker.name, {
+                        name: currentBiomarker.name,
+                        mostRecentAbnormalIndex: mostRecentAbnormalIndex
+                    });
                 }
             }
 
@@ -852,21 +865,18 @@
                 const currentBiomarker = currentTest.biomarkers.find(b => b.name === item.name);
                 if (!currentBiomarker) continue;
 
-                const previousTest = getPreviousTest(currentIndex);
-                let previousBiomarker = null;
+                const previousValues = getPreviousBiomarkerValues(currentBiomarker.name, currentIndex);
+                let previousBiomarker = previousValues.length > 0 ? previousValues[0].biomarker : null;
                 let arrowColor = 'neutral';
 
-                if (previousTest) {
-                    previousBiomarker = previousTest.biomarkers.find(b => b.name === item.name);
-                    if (previousBiomarker) {
-                        const arrow = calculateArrow(
-                            currentBiomarker.value,
-                            previousBiomarker.value,
-                            currentBiomarker.low,
-                            currentBiomarker.high
-                        );
-                        arrowColor = arrow.color;
-                    }
+                if (previousBiomarker) {
+                    const arrow = calculateArrow(
+                        currentBiomarker.value,
+                        previousBiomarker.value,
+                        currentBiomarker.low,
+                        currentBiomarker.high
+                    );
+                    arrowColor = arrow.color;
                 }
 
                 important.push({
