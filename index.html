@@ -355,6 +355,16 @@
             transform: translateY(-1px);
         }
 
+        .biomarker-card-improving {
+            background: #f0fdf4;
+            border-color: #bbf7d0;
+        }
+
+        .biomarker-card-worsening {
+            background: #fef2f2;
+            border-color: #fecaca;
+        }
+
         .biomarker-name {
             font-weight: 600;
             color: var(--text-secondary);
@@ -844,17 +854,37 @@
 
                 const previousTest = getPreviousTest(currentIndex);
                 let previousBiomarker = null;
+                let arrowColor = 'neutral';
+
                 if (previousTest) {
                     previousBiomarker = previousTest.biomarkers.find(b => b.name === item.name);
+                    if (previousBiomarker) {
+                        const arrow = calculateArrow(
+                            currentBiomarker.value,
+                            previousBiomarker.value,
+                            currentBiomarker.low,
+                            currentBiomarker.high
+                        );
+                        arrowColor = arrow.color;
+                    }
                 }
 
                 important.push({
                     name: item.name,
                     current: currentBiomarker,
                     previous: previousBiomarker,
-                    mostRecentAbnormalIndex: item.mostRecentAbnormalIndex
+                    mostRecentAbnormalIndex: item.mostRecentAbnormalIndex,
+                    arrowColor: arrowColor
                 });
             }
+
+            // Sort by improvement (green first, neutral second, red last), then alphabetically.
+            important.sort((a, b) => {
+                const colorOrder = { 'green': 0, 'neutral': 1, 'red': 2 };
+                const colorCompare = colorOrder[a.arrowColor] - colorOrder[b.arrowColor];
+                if (colorCompare !== 0) return colorCompare;
+                return a.name.localeCompare(b.name);
+            });
 
             return important;
         }
@@ -954,12 +984,11 @@
         }
 
         // Get arrow symbol.
-        function getArrowSymbol(direction) {
-            switch (direction) {
-                case 'up': return '↑';
-                case 'down': return '↓';
-                case 'flat': return '→';
-                default: return '•';
+        function getArrowSymbol(color) {
+            switch (color) {
+                case 'green': return '+';
+                case 'red': return '−';
+                default: return '=';
             }
         }
 
@@ -1063,7 +1092,7 @@
                     );
 
                     let previousHtml = '';
-                    let arrowHtml = '';
+                    let cardColorClass = '';
 
                     if (item.previous) {
                         const previousColorClass = getValueColorClass(
@@ -1074,14 +1103,12 @@
                         previousHtml = `<span class="previous-value ${previousColorClass}">
                             prev: ${item.previous.value}${item.previous.unit ? ' ' + item.previous.unit : ''}
                         </span>`;
+                    }
 
-                        const arrow = calculateArrow(
-                            item.current.value,
-                            item.previous.value,
-                            item.current.low,
-                            item.current.high
-                        );
-                        arrowHtml = `<span class="arrow arrow-${arrow.color}">${getArrowSymbol(arrow.direction)}</span>`;
+                    if (item.arrowColor === 'green') {
+                        cardColorClass = 'biomarker-card-improving';
+                    } else if (item.arrowColor === 'red') {
+                        cardColorClass = 'biomarker-card-worsening';
                     }
 
                     // Format the range text.
@@ -1098,17 +1125,18 @@
                     }
 
                     html += `
-                        <div class="biomarker-card" onclick="showLongitudinalView('${item.name}')">
+                        <div class="biomarker-card ${cardColorClass}" onclick="showLongitudinalView('${item.name}')">
                             <div class="biomarker-name">${item.name}</div>
                             <div class="biomarker-values">
                                 <span class="current-value ${currentColorClass}">
                                     ${item.current.value}${item.current.unit ? ' ' + item.current.unit : ''}
                                 </span>
-                                ${arrowHtml}
                             </div>
                             <div style="display: flex; justify-content: space-between; align-items: flex-end;">
                                 <div>${previousHtml}</div>
-                                <div style="font-size: 0.75rem; color: #718096; text-align: right;">${rangeText}</div>
+                                <div style="text-align: right;">
+                                    <div style="font-size: 0.75rem; color: #718096;">${rangeText}</div>
+                                </div>
                             </div>
                         </div>
                     `;
