@@ -119,7 +119,9 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            position: relative;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
         }
 
         header h1 {
@@ -610,10 +612,12 @@
                 top: 0;
                 left: 0;
                 bottom: 0;
-                width: 100%;
+                width: 85%;
+                max-width: 320px;
                 z-index: 999;
                 transform: translateX(-100%);
                 box-shadow: var(--shadow-lg);
+                padding-top: 4rem;
             }
 
             .sidebar.open {
