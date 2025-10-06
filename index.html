@@ -190,11 +190,14 @@
             overflow-y: auto;
             flex-shrink: 0;
             transition: margin-left 0.3s ease, transform 0.3s ease;
-            margin-left: -280px;  /* Start hidden by default. */
         }
 
-        /* Show sidebar when open on desktop. */
+        /* Desktop: use margin-left to show/hide. */
         @media (min-width: 769px) {
+            .sidebar {
+                margin-left: -280px;  /* Start hidden by default. */
+            }
+
             .sidebar.open {
                 margin-left: 0;
             }
@@ -607,6 +610,7 @@
                 top: 0;
                 left: 0;
                 bottom: 0;
+                width: 100%;
                 z-index: 999;
                 transform: translateX(-100%);
                 box-shadow: var(--shadow-lg);
