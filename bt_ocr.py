@@ -248,8 +248,18 @@ def convert_pdf_to_images(pdf_path: pathlib.Path, prefix: str) -> pathlib.Path:
 
 def extract_columns_from_open_document_first_row(
     odf_path: pathlib.Path,
-) -> list[str]:
-    """Return the text contents of the first row's columns in an OpenDocument file."""
+) -> tuple[list[str], bool]:
+    """Return the biomarker column names and whether an assessment column exists.
+
+    The assessment column, if present, should always be the last column in the spreadsheet.
+    This function separates it from the biomarker columns so new biomarkers can be inserted
+    before assessment rather than after it.
+
+    Returns:
+        Tuple of (biomarker_columns, has_assessment) where:
+        - biomarker_columns: List of biomarker column names (excluding assessment)
+        - has_assessment: True if the last column is "assessment"
+    """
 
     odf_path = odf_path.expanduser().resolve()
     if not odf_path.is_file():
@@ -266,7 +276,7 @@ def extract_columns_from_open_document_first_row(
         break
 
     if table is None:
-        return []
+        return [], False
 
     for row in table.getElementsByType(TableRow):
         cells: list[str] = []
@@ -277,9 +287,15 @@ def extract_columns_from_open_document_first_row(
             if text_content:
                 cells.extend([text_content] * repeat)
 
-        return cells[2:]
+        columns = cells[2:]
 
-    return []
+        # Check if the last column is "assessment" (case-insensitive).
+        if columns and columns[-1].strip().lower() == "assessment":
+            return columns[:-1], True
+
+        return columns, False
+
+    return [], False
 
 
 def extract_lab_names_from_open_document(
@@ -476,7 +492,10 @@ def format_biomarker_column_name(biomarker: dict[str, Any]) -> str:
 
 
 def write_results_to_ods(
-    odf_path: pathlib.Path, ocr_result: dict[str, Any], existing_biomarkers: list[str]
+    odf_path: pathlib.Path,
+    ocr_result: dict[str, Any],
+    existing_biomarkers: list[str],
+    has_assessment: bool,
 ) -> None:
     """Write OCR results to the ODS file by inserting a new row at position 2.
 
@@ -484,6 +503,7 @@ def write_results_to_ods(
         odf_path: Path to the ODS file
         ocr_result: Dictionary containing OCR results with lab_name, date, and biomarkers
         existing_biomarkers: List of existing biomarker column names from the header
+        has_assessment: Whether the spreadsheet has an assessment column as the last column
     """
     odf_path = odf_path.expanduser().resolve()
     if not odf_path.is_file():
@@ -568,14 +588,24 @@ def write_results_to_ods(
     if new_biomarkers:
         header_row = rows[0]
 
-        # Find the last cell with repeated columns (empty columns at the end).
+        # Find where to insert new columns: before "assessment" if it exists, otherwise before repeated empty columns.
         header_cells = list(header_row.childNodes)
         insert_before = None
-        if header_cells:
-            last_cell = header_cells[-1]
-            # If the last cell has numbercolumnsrepeated, insert new cells before it.
-            if last_cell.getAttribute("numbercolumnsrepeated"):
-                insert_before = last_cell
+
+        if has_assessment:
+            # Find the assessment cell by looking for the cell with "assessment" text.
+            # Count from the beginning: Date (0), Lab name (1), then biomarkers start at index 2.
+            # Assessment should be at index 2 + len(existing_biomarkers).
+            assessment_index = 2 + len(existing_biomarkers)
+            if assessment_index < len(header_cells):
+                insert_before = header_cells[assessment_index]
+        else:
+            # No assessment column, insert before repeated empty columns.
+            if header_cells:
+                last_cell = header_cells[-1]
+                # If the last cell has numbercolumnsrepeated, insert new cells before it.
+                if last_cell.getAttribute("numbercolumnsrepeated"):
+                    insert_before = last_cell
 
         # Add the new biomarker columns.
         for new_biomarker in new_biomarkers:
@@ -621,6 +651,11 @@ def write_results_to_ods(
         # Leave cell empty if no biomarker or value.
 
         new_row.addElement(cell)
+
+    # Add assessment column if it exists (always last, always empty for OCR results).
+    if has_assessment:
+        assessment_cell = TableCell()
+        new_row.addElement(assessment_cell)
 
     # Insert the new row at position 1 (right after header, which is at position 0)
     # This will push the existing row 2 down
@@ -669,7 +704,9 @@ def main() -> None:
     args = parser.parse_args()
 
     try:
-        biomarker_names = extract_columns_from_open_document_first_row(args.ods)
+        biomarker_names, has_assessment = extract_columns_from_open_document_first_row(
+            args.ods
+        )
         lab_names = extract_lab_names_from_open_document(args.ods)
     except (FileNotFoundError, ValueError) as exc:
         parser.error(str(exc))
@@ -705,7 +742,7 @@ def main() -> None:
             print()
 
             # Write results back to the ODS file.
-            write_results_to_ods(args.ods, result, biomarker_names)
+            write_results_to_ods(args.ods, result, biomarker_names, has_assessment)
 
             # Output the results (if requested)
             if args.output:
