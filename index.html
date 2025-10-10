@@ -785,6 +785,19 @@
             return isNumeric(value) ? parseFloat(value.trim()) : null;
         }
 
+        // Format a biomarker value for display with appropriate precision.
+        // Uses significant figures to avoid overwhelming users with unnecessary decimals.
+        function formatBiomarkerValue(value) {
+            const num = parseNumeric(value);
+            if (num === null) return value; // Return as-is if not numeric.
+
+            if (num >= 100) return num.toFixed(0);
+            if (num >= 50) return num.toFixed(0);
+            if (num >= 10) return num.toFixed(1);
+            if (num >= 1) return num.toFixed(2);
+            return num.toFixed(2);
+        }
+
         // Check if a value is in range.
         // Returns true (in range), false (out of range), or null (non-numeric or no range).
         function checkInRange(value, low, high) {
@@ -1119,7 +1132,7 @@
                             item.previous.high
                         );
                         previousHtml = `<span class="previous-value ${previousColorClass}">
-                            prev: ${item.previous.value}${item.previous.unit ? ' ' + item.previous.unit : ''}
+                            prev: ${formatBiomarkerValue(item.previous.value)}${item.previous.unit ? ' ' + item.previous.unit : ''}
                         </span>`;
                     }
 
@@ -1147,7 +1160,7 @@
                             <div class="biomarker-name">${item.name}</div>
                             <div class="biomarker-values">
                                 <span class="current-value ${currentColorClass}">
-                                    ${item.current.value}${item.current.unit ? ' ' + item.current.unit : ''}
+                                    ${formatBiomarkerValue(item.current.value)}${item.current.unit ? ' ' + item.current.unit : ''}
                                 </span>
                             </div>
                             <div style="display: flex; justify-content: space-between; align-items: flex-end;">
@@ -1218,7 +1231,7 @@
                     html += `
                         <tr onclick="showLongitudinalView('${biomarker.name}')">
                             <td>${biomarker.name}</td>
-                            <td style="${valueStyle}">${biomarker.value}${biomarker.unit ? ' ' + biomarker.unit : ''}</td>
+                            <td style="${valueStyle}">${formatBiomarkerValue(biomarker.value)}${biomarker.unit ? ' ' + biomarker.unit : ''}</td>
                             <td>${rangeText}</td>
                         </tr>
                     `;
@@ -1490,7 +1503,7 @@
                             callbacks: {
                                 label: function(context) {
                                     const point = context.raw;
-                                    return `${currentBiomarker}: ${point.originalValue}${unit ? ' ' + unit : ''}`;
+                                    return `${currentBiomarker}: ${formatBiomarkerValue(point.originalValue)}${unit ? ' ' + unit : ''}`;
                                 }
                             }
                         },
