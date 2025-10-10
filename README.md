@@ -75,7 +75,7 @@ This will:
 - Insert a new row with the extracted data
 
 **Options:**
-- `--model` - Specify Anthropic model (default: claude-opus-4-1)
+- `--model` - Specify Anthropic model (default: claude-sonnet-4-5)
 - `--no-ocr` - Only convert PDF to images without OCR
 - `--output` - Save OCR results to JSON file
 - `--prefix` - Filename prefix for generated images (default: page)
@@ -94,7 +94,7 @@ This will:
 - Write assessments back to the spreadsheet
 
 **Options:**
-- `--model` - Specify Anthropic model (default: claude-opus-4-1)
+- `--model` - Specify Anthropic model (default: claude-sonnet-4-5)
 - `--limit N` - Only process N tests (for testing)
 - `--dry-run` - Generate dummy assessments without calling API
 
@@ -200,7 +200,7 @@ Lipid panel  | LDL Cholesterol | HDL Cholesterol
 - `--ods` - Path to the OpenDocument spreadsheet
 
 **Optional arguments:**
-- `--model MODEL` - Anthropic model to use (default: claude-opus-4-1)
+- `--model MODEL` - Anthropic model to use (default: claude-sonnet-4-5)
 - `--prefix PREFIX` - Filename prefix for images (default: page)
 - `--no-ocr` - Only convert PDF to images, skip OCR
 - `--output FILE` - Save OCR results to JSON file
@@ -230,7 +230,7 @@ Lipid panel  | LDL Cholesterol | HDL Cholesterol
 - `ods_file` - Path to the OpenDocument spreadsheet
 
 **Optional arguments:**
-- `--model MODEL` - Anthropic model to use (default: claude-opus-4-1)
+- `--model MODEL` - Anthropic model to use (default: claude-sonnet-4-5)
 - `--limit N` - Only process N tests (for testing)
 - `--dry-run` - Generate dummy assessments without API calls
 
@@ -285,7 +285,7 @@ export ANTHROPIC_API_KEY='your-api-key-here'
 **Problem: OCR extracts wrong values**
 - Review the PDF images in the temporary directory (shown in output)
 - Ensure the PDF is clear and readable
-- Try a different model with `--model claude-opus-4-1`
+- Try a different model with `--model claude-sonnet-4-5`
 
 ### Assessment issues
 
