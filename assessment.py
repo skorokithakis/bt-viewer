@@ -34,7 +34,7 @@ except ModuleNotFoundError as exc:
     ) from exc
 
 
-DEFAULT_ANTHROPIC_MODEL = "claude-opus-4-1"
+DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-5"
 
 
 def parse_biomarker_header(header: str) -> dict[str, Any]:

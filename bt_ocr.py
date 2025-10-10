@@ -31,7 +31,7 @@ except ModuleNotFoundError as exc:  # pragma: no cover - dependency guard
     ) from exc
 
 
-DEFAULT_ANTHROPIC_MODEL = "claude-opus-4-1"
+DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-5"
 
 
 # This script will convert a PDF file of blood test results into a series of PNG
