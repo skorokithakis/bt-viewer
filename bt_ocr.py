@@ -622,7 +622,12 @@ def write_results_to_ods(
 
     # First column: Date
     date_cell = TableCell()
-    date_p = text.P(text=ocr_result.get("date", ""))
+    date_value = ocr_result.get("date", "")
+    if date_value:
+        # Set as date value to avoid the leading single quote.
+        date_cell.setAttribute("valuetype", "date")
+        date_cell.setAttribute("datevalue", date_value)
+    date_p = text.P(text=date_value)
     date_cell.addElement(date_p)
     new_row.addElement(date_cell)
 
