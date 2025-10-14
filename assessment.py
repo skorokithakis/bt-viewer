@@ -19,6 +19,7 @@ import pathlib
 import re
 import sys
 import textwrap
+from datetime import datetime
 from typing import Any
 
 import anthropic
@@ -320,6 +321,68 @@ def identify_important_biomarkers(
     return important_biomarkers
 
 
+def parse_test_date(date_string: str) -> datetime | None:
+    """Parse a test date string to a datetime object.
+
+    Tries multiple common date formats. Returns None if parsing fails.
+
+    Args:
+        date_string: Date string from the test data
+
+    Returns:
+        datetime object or None if parsing fails
+    """
+    # Common date formats to try.
+    formats = [
+        "%Y-%m-%d",
+        "%d/%m/%Y",
+        "%m/%d/%Y",
+        "%Y/%m/%d",
+        "%d-%m-%Y",
+        "%m-%d-%Y",
+        "%d.%m.%Y",
+        "%Y.%m.%d",
+    ]
+
+    for fmt in formats:
+        try:
+            return datetime.strptime(date_string.strip(), fmt)
+        except ValueError:
+            continue
+
+    return None
+
+
+def format_time_elapsed(test_date: datetime, reference_date: datetime) -> str:
+    """Format the time elapsed between two dates in a human-readable way.
+
+    Args:
+        test_date: The earlier date (the test date)
+        reference_date: The later date (typically today)
+
+    Returns:
+        Human-readable string like "2 months ago" or "1 week ago"
+    """
+    delta = reference_date - test_date
+    days = delta.days
+
+    if days == 0:
+        return "today"
+    elif days == 1:
+        return "1 day ago"
+    elif days < 7:
+        return f"{days} days ago"
+    elif days < 30:
+        weeks = days // 7
+        return f"{weeks} week ago" if weeks == 1 else f"{weeks} weeks ago"
+    elif days < 365:
+        months = days // 30
+        return f"{months} month ago" if months == 1 else f"{months} months ago"
+    else:
+        years = days // 365
+        return f"{years} year ago" if years == 1 else f"{years} years ago"
+
+
 def get_historical_values(
     tests: list[dict[str, Any]], current_test_index: int, biomarker_name: str
 ) -> list[dict[str, Any]]:
@@ -355,6 +418,7 @@ def build_assessment_prompt(
     important_biomarkers: set[str],
     tests: list[dict[str, Any]],
     current_test_index: int,
+    today: datetime,
 ) -> str:
     """Build a prompt for Claude to assess the blood test results.
 
@@ -363,6 +427,7 @@ def build_assessment_prompt(
         important_biomarkers: Set of biomarker names that are important
         tests: All tests for historical context
         current_test_index: Index of current test in tests list
+        today: Today's date for calculating relative times
 
     Returns:
         Formatted prompt string
@@ -400,10 +465,21 @@ def build_assessment_prompt(
         for biomarker_name in sorted(important_biomarkers):
             history = get_historical_values(tests, current_test_index, biomarker_name)
             if history:
-                history_values = ", ".join(
-                    [f"{h['date']}: {h['value']}" for h in history]
-                )
-                historical_lines.append(f"- {biomarker_name}: {history_values}")
+                history_values = []
+                for h in history:
+                    date_str = h["date"]
+                    value = h["value"]
+                    # Try to parse the date and add relative time.
+                    parsed_date = parse_test_date(date_str)
+                    if parsed_date:
+                        time_elapsed = format_time_elapsed(parsed_date, today)
+                        history_values.append(f"{date_str} ({time_elapsed}): {value}")
+                    else:
+                        # If date parsing fails, just show the date without relative time.
+                        history_values.append(f"{date_str}: {value}")
+
+                history_str = ", ".join(history_values)
+                historical_lines.append(f"- {biomarker_name}: {history_str}")
 
         if historical_lines:
             historical_text = (
@@ -411,11 +487,19 @@ def build_assessment_prompt(
                 + "\n".join(historical_lines)
             )
 
+    # Parse the current test date to show how recent it is.
+    current_test_date = parse_test_date(test["date"])
+    if current_test_date:
+        current_test_time_info = f" ({format_time_elapsed(current_test_date, today)})"
+    else:
+        current_test_time_info = ""
+
     prompt = textwrap.dedent(
         f"""
         You are a medical AI assistant analyzing blood test results. Please provide a concise assessment of the following blood test.
 
-        TEST DATE: {test["date"]}
+        TODAY'S DATE: {today.strftime("%Y-%m-%d")}
+        TEST DATE: {test["date"]}{current_test_time_info}
         LABORATORY: {test["lab"]}
 
         BIOMARKERS (⚠️ indicates biomarkers that are currently out of range or were out of range in the previous 3 tests):
@@ -443,6 +527,7 @@ def generate_assessment_with_claude(
     important_biomarkers: set[str],
     tests: list[dict[str, Any]],
     current_test_index: int,
+    today: datetime,
     model: str = DEFAULT_ANTHROPIC_MODEL,
 ) -> str:
     """Generate an assessment for a blood test using Claude.
@@ -452,6 +537,7 @@ def generate_assessment_with_claude(
         important_biomarkers: Set of important biomarker names
         tests: All tests for context
         current_test_index: Index of current test
+        today: Today's date for calculating relative times
         model: Anthropic model to use
 
     Returns:
@@ -464,8 +550,14 @@ def generate_assessment_with_claude(
     client = anthropic.Anthropic(api_key=api_key)
 
     prompt = build_assessment_prompt(
-        test, important_biomarkers, tests, current_test_index
+        test, important_biomarkers, tests, current_test_index, today
     )
+
+    print("\n" + "=" * 80, file=sys.stderr)
+    print("PROMPT TO CLAUDE:", file=sys.stderr)
+    print("=" * 80, file=sys.stderr)
+    print(prompt, file=sys.stderr)
+    print("=" * 80 + "\n", file=sys.stderr)
 
     response = client.messages.create(
         model=model,
@@ -620,6 +712,11 @@ def main() -> None:
         action="store_true",
         help="Test mode: generate a dummy assessment without calling Claude API",
     )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Force regeneration of assessments even if they already exist",
+    )
 
     args = parser.parse_args()
 
@@ -633,11 +730,44 @@ def main() -> None:
     print(f"Found {len(tests)} tests in the spreadsheet.", file=sys.stderr)
     print(f"Found {len(biomarker_info)} biomarker columns.", file=sys.stderr)
 
+    # Sort tests chronologically (oldest first) by parsing dates.
+    # This ensures historical lookups work correctly regardless of spreadsheet order.
+    tests_with_parsed_dates = []
+    unparseable_tests = []
+    for test in tests:
+        parsed_date = parse_test_date(test["date"])
+        if parsed_date:
+            tests_with_parsed_dates.append((parsed_date, test))
+        else:
+            # If date parsing fails, skip this test with a warning.
+            print(
+                f"Warning: Could not parse date '{test['date']}', skipping test",
+                file=sys.stderr,
+            )
+            unparseable_tests.append(test)
+
+    tests_with_parsed_dates.sort(key=lambda x: x[0])
+    tests = [test for _, test in tests_with_parsed_dates]
+
+    if tests:
+        print(
+            f"Tests sorted chronologically from {tests[0]['date']} to {tests[-1]['date']}",
+            file=sys.stderr,
+        )
+    if unparseable_tests:
+        print(
+            f"Skipped {len(unparseable_tests)} tests with unparseable dates",
+            file=sys.stderr,
+        )
+
     # Process each test that doesn't have an assessment.
     assessments_to_write = {}
-    tests_to_process = [
-        (idx, test) for idx, test in enumerate(tests) if not test["assessment"]
-    ]
+    if args.force:
+        tests_to_process = [(idx, test) for idx, test in enumerate(tests)]
+    else:
+        tests_to_process = [
+            (idx, test) for idx, test in enumerate(tests) if not test["assessment"]
+        ]
 
     # Apply limit if specified.
     if args.limit and args.limit > 0:
@@ -652,6 +782,8 @@ def main() -> None:
         f"\nProcessing {len(tests_to_process)} tests without assessments...",
         file=sys.stderr,
     )
+
+    today = datetime.now()
 
     for idx, test in tests_to_process:
         print(
@@ -675,7 +807,7 @@ def main() -> None:
             else:
                 print("  Generating assessment with Claude...", file=sys.stderr)
                 assessment = generate_assessment_with_claude(
-                    test, important_biomarkers, tests, idx, args.model
+                    test, important_biomarkers, tests, idx, today, args.model
                 )
             assessments_to_write[test["row_index"]] = assessment
             print(
